@@ -1,0 +1,269 @@
+------------------------------------------------------------------------------
+0. MANUAL
+------------------------------------------------------------------------------
+
+NSMnow Version 1.6.1
+
+This MANUAL contains the command usage and details of the appropriate options
+of the NSM Adminstration scripts. 
+
+If you have any questions or comments about the NSMnow scripts then please
+direct them to the SecurixLive Team <dev@securixlive.com>.
+
+
+------------------------------------------------------------------------------
+1. COPYRIGHT
+------------------------------------------------------------------------------
+
+Copyright (C) 2008-2009 SecurixLive   <dev@securixlive.com>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License Version 2 as
+published by the Free Software Foundation.  You may not use, modify or
+distribute this program under any other version of the GNU General
+Public License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+
+------------------------------------------------------------------------------
+2. DESCRIPTION
+------------------------------------------------------------------------------
+
+NSMnow is an open source tool to automate the installation and configuration
+of a Network Security Monitoring framework (NSM) built on sguil. Its primary 
+use is to allow the user to deploy and build an NSM framework without the
+hassle of compiling, installing, and configuring all the tools separately.
+
+NSMnow essentially has 2 modes of operation: 
+  1. an interactive install, and
+  2. a non-interactive install.  
+      
+In interactive mode you will be asked a series of questions throughout the 
+installation process giving you the option to skip or install that component.
+
+In non-interactive mode, NSMnow will assume that all options are to be
+selected and will install everything.  However, if some components, such as
+MySQL, are already installed and do not require customisation for the NSM
+framework they will be skipped.
+
+For a full description on what happens at each step see the README file or
+read the accompanying documentation on the website.
+
+
+------------------------------------------------------------------------------
+3. USAGE
+------------------------------------------------------------------------------
+
+Command line: 
+
+Usage: NSMnow [options]
+
+Options:
+    -c <file>
+        Defines an alternative configuration <file>. The default configuration
+        file that is used is NSMnow.conf which is located in the base
+        directory along with the NSMnow executable.
+
+        The structure of the configuration file is takes the form of section
+        heads and key=value pairs.
+
+    -i  Installs the NSMnow related packages onto the system.  If no --package
+        switch is used, then all packages are installed.
+
+    -r  Reconfigures NSMnow related packages that have been previously
+        installed onto the system.
+    
+    -l <file>
+        Defines an alternative log <file>
+
+    -v <#>
+        Sets the verbosity to level <#>. The maximum verbosity level available
+        is 3.
+
+    -D  Download all required source tarballs only. On supported systems this
+        will also attempt to download system specific packages and libraries
+        using the native package management systems.
+
+    -?  Show this help
+
+
+Long Options:
+    --force-yes
+        Force all NSM default options to be accepted requiring minimal
+        standard input from the user.
+
+    --package=app
+        Explicitly define the packages that you want to perform the actions
+        on. Multiple directives are not currently supported.
+
+    --help
+        Same as -?
+
+
+Available packages:
+    all             - All packages (snort, sguil, barnyard2 and sancp) and
+                      and additional dependencies (eg. Tcl, mysql)
+
+    sensor          - All sensor specific components
+    server          - All server specific components
+    client          - All client specific components
+
+    snort           - Snort v2.8.4.1
+    sguilclient     - Sguil v0.7.0 (client components only)
+    sguilsensor     - Sguil v0.7.0 (sensor components only)
+    sguilserver     - Sguil v0.7.0 (server components only)
+    barnyard2       - Barnyard v2.1.6
+    sancp           - Sancp v1.6.1-stable
+    sguiltools      - Sguil tools: wireshark, p0f, tcpdump and tcpflow
+
+
+------------------------------------------------------------------------------
+4. INSTALLATION
+------------------------------------------------------------------------------
+
+To install a complete NSM all-in-one (i.e. sensor, server and client) solution
+then with root privileges, from the NSMnow directory, run:
+
+# ./NSMnow -i
+
+Alternatively you can choose to install the components separately using the
+the package keyword to explicitly define your packages. Multiple package
+definitions are not currently supported.
+
+For example the following will install an NSM client:
+
+# ./NSMnow -i --package=client
+
+And for an NSM sensor only:
+
+# ./NSMnow -i --package=sensor
+
+
+When installing the packages NSMnow will determine if the source tarballs and
+appropriate system components are available. If they are not it will attempt
+to download them prior to performing the actual installation. It is possible
+to instruct NSMnow to download the appropriate packages only. This is simply
+performed with:
+
+# ./NSMnow -D
+
+
+During the install process the final step will be to configure the individual
+packages. It is quite possible that errors will occur here and more so if you
+have not opted for the default inputs that were provided at the start. In the
+event that a particular package can't be configured due to an incorrect 
+parameter then simply re-running the install will allow start the prompting
+all over again.
+
+Alternatively if you have successfully completed an install but wish to change
+a single component of the install you can simply reconfigure using:
+
+# ./NSMnow -r --package=sensor
+
+
+------------------------------------------------------------------------------
+5. TESTING
+------------------------------------------------------------------------------
+
+The sensor and server components can be started quickly with:
+
+# nsm --all --start
+
+To connect to the server with the client then as the current logged in X user
+simply type:
+
+$ sguil.tk
+
+The sensor and server components can be stopped just as quickly with:
+
+# nsm --all --stop
+
+Read the provided MANUAL for options or run ./NSMnow -help
+
+For detailed tips and guides on what NSMnow installs how the system is
+configured see the project page at http://www.securixlive.com/nsmnow/
+ 
+
+------------------------------------------------------------------------------
+6. TROUBLESHOOTING
+------------------------------------------------------------------------------
+
+Q. Why can't I extract transcripts or wireshark logs?
+
+A. This is due to an time inconsistency between the server and sensor 
+components, where the server is attempting to retrieve information from the 
+capture files during a period that is inconsistent. Since Snort can log in
+either UTC or the localtime, it is very important to ensure that when
+components are stored on seperate machines that all machines are synchronised
+together in terms of UTC and timezone (if set).
+
+This can be done by either setting the timezone on all machines to UTC or
+alternatively ensure all machines are set to the same timezone. Alternatively
+there is the option to ensure sensors capture information in UTC mode
+regardless of the time zone. You can edit this setting with nsm_sensor_edit.
+
+
+Q. It says it's compiling but it's taking an awfully long time. Has it hung?
+
+A. To keep the display relatively clutter free majority of the output is piped
+to the log file. This ensures that everything is captured when troubleshooting.
+
+This also may appear that nothing is happening. However, you are able to get a
+full picture of what is going on by tailing the log file. We do this
+extensively during testing to get the full picture of what is happening.
+        
+# tail -f ./NSMnow.log
+
+
+Q. Where is the sancp data? It keeps saying 0 rows returned.
+
+A. If your system/distribution has AppArmor installed and is running you will
+need to ensure MySQL has read access to the files on the local filesystem. This
+can typically be achieved by adding the appropriate line to the mysql profile.
+
+For example on a Ubuntu system, add the following line to the mysql apparmor
+profile in the file "/etc/apparmor.d/usr.sbin.mysqld"
+
+    nsm/server_data/server1/load/* r,
+
+
+Q. How do I update the Snort rules?
+
+A. NSMnow is designed to set up the initial framework for a NSM system based
+around Sguil.
+
+Whilst it does not configure any Snort signature handling tools, we do recommend
+two excellent tools; oinkmaster and pulledpork. The latter addresses some issues
+of the former particularly with compiled rule sets and so is our preferred
+choice.
+
+The process for updating the rules for snort has two distinct parts, updating
+the rules for the sensor and updating the rules for the server. The reason rules
+exist on the server are so that Sguil can correlate rule messages to the sensor
+from which a real-time alert arrives from. If the rules do not correlate clients
+will be presented with incorrect, or no, information.
+
+So where are these rules stored?
+
+For the sensor(s) they will be stored under: /etc/nsm/sensorname/rules, where
+"sensorname" is the name of the sensor you're updating the rules for. This
+is the location that the snort process will use in its processing.
+
+For the server(s), all rule information pertaining to an associated sensor will
+be stored at: /nsm/server_data/servername/rules/sensorname, where "servername"
+is the server of interest and "sensorname" is the associated sensor to the
+server of interest.
+
+Example: If I have a sensor "thor" connected to a server "athena" and wish to
+update the rules. I will first update the rules on the sensor under that will
+exist at "/etc/nsm/thor/rules" and ensure the corresponding *.map files are also
+updated at "/etc/nsm/thor". Secondly I'll ensure the same rules are updated on
+the server under the "/nsm/server_data/athena/rules/thor".
