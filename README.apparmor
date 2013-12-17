@@ -1,0 +1,28 @@
+
+------------------------------------------------------------------------------
+0. INTRODUCTION
+------------------------------------------------------------------------------
+
+Some distributions are now introducing application security frameworks such as
+SELinux and AppArmor. These framewords are designed to protect against known
+and unknown threats by providing features such as mandatory access control.
+
+If you experience some peculiarities that you suspect to be related to the
+beast that is AppArmor or SELinux, try disabling to establish if it is the
+root cause or not.
+
+
+------------------------------------------------------------------------------
+1. APPARMOR
+------------------------------------------------------------------------------
+
+If your distribution has AppArmor installed and is running you will need to
+ensure MySQL has read access to the files on the local filesystem. This can
+typically be achieved by adding the appropriate line to the mysql profile
+
+For example on a Ubuntu system, add the following line to the mysql profile in
+"/etc/apparmor.d/usr.sbin.mysqld":
+
+/nsm/server_data/server1/load/* r,
+
+

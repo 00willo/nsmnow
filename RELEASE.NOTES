@@ -1,0 +1,298 @@
+2010-01-30 - NSMnow 1.6.2
+  [*] Improvements.
+     * Ubuntu. Fixed an issue with Karmic installs relating to the Tcl
+       configuration. It reverts the patch (Debian #442469) for tclx8.4.
+
+     * CentOS. Added recognition for CentOS 5.4 machines. CentOS installations
+       are still considered experimental so all feedback is welcomed.
+
+     * barnyard2. Updated links to barnyard2, 1.8-beta2.
+
+2009-10-27 - NSMnow 1.6.1
+  [*] Additions.
+     * core. Added initial framework for upgrading the NSMnow scripts. The
+       NSMnow scripts will install along side the NSM administration scripts.
+
+  [*] Improvements.
+     * core. Fixed an issue with installations on Fedora, CentOS and RHEL
+       when using explicit package directives.
+
+
+2009-10-18 - NSMnow 1.6.0
+  [*] Additions.
+     * OS. Initial beta support for Fedora, CentOS and RHEL has been finally
+       made it into the main installation routines. Time for some more bug
+       reports.
+
+  [*] Improvements.
+     * NSMnow. The core of NSMnow has transitioned from PERL to BASH. The
+       primary reason for this change was to improve interoperability 
+       across all platforms but also to remove the number of dependencies
+       required.
+
+     * snort. The supported version of Snort has now be bumped up to 2.8.5.
+
+
+2009-09-05 - NSMnow 1.5.0
+  [*] Additions.
+     * OS. Initial beta support for Fedora, CentOS and RHEL has been finally
+       made it into the main installation routines. Time for some more bug
+       reports.
+
+  [*] Improvements.
+     * NSM administration. Fixed a number of issues in the library files as
+       well as the server and sensor startup scripts.
+
+
+2009-08-08 - NSMnow 1.4.2
+  [*] Additions.
+     * NSM administration. Added awareness for distribution specific
+       requirements, such as AppArmor configuration on Ubuntu systems.
+
+  [*] Improvements.
+     * barnyard2. Updated links to barnyard2, 1.6.
+
+
+2009-05-30 - NSMnow 1.4.1
+  [*] Improvements.
+     * snort. Updated links to snort 2.8.4.1 and new site structure.
+	 
+     * barnyard2. Updated links to barnyard2, 1.5.
+
+     * NSM administration. Issues with the process management of multiple 
+       sensors and/or servers has been fixed. Thanks Jon. B. Bayer.
+
+
+2009-04-20 - NSMnow 1.4.0
+  [*] Additions.
+     * snort. Throughout the 2.8.3.X series of Snort, Ubuntu users have been
+       frustrated with the requirement to patch the one liner in server_stats.c
+       in order to cleanly compile. Due to this requirement it has significantly
+       reduced the simplicity offered by NSMnow, and so we have added a seamless
+       auto patching feature for Ubuntu systems that will ensure snort compiles
+       as expected. However, we have also upgraded snort so this may never be
+       used, but if it is ...
+
+     * User Administration. The complexity of adding new users to connect to
+       the sguil server just got a whole lot easier. Two new functions for
+       adding and deleting users have been included with the administration
+       scripts.
+
+  [*] Improvements.
+     * Administration. A number of little bugs and inconsitencies have been
+       addressed in this update. If you find anything that seems out of place
+       then please let us know.
+
+     * barnyard2. Updated links to new releae of barnyard2, 1.4.
+
+     * snort. The primary snort link has been updated to version 2.8.4, with
+       the fallback links being limited to the 2.8.3.X branch.
+
+
+2009-03-07 - NSMnow 1.3.5
+  [*] Additions.
+     * Server/Sensor Management. The ability to clear collected data from a
+       sensor or server was added. 
+
+  [*] Improvements.
+     * barnyard2. Updated links to the new releae of barnyard2.
+
+
+2009-02-04 - NSMnow 1.3.4
+  [*] Improvements.
+     * barnyard2. Updated links to the new release of barnyard2.
+
+     * Sensor Process Management. It is now possible to specific sub-processes
+       explicitly when managing sensor processes. This complements the existing
+       ability to explicitly skip particulary processes. See the adminsitration
+       README for more details.
+
+     * Cron. Fixed issues with daily restarts with the cronjob.
+
+
+2009-01-26 - NSMnow 1.3.3
+  [*] Improvements.
+     * UTC logging. A hard to track bug has finally been found and squished with
+       regard to timestamps and UTC enabled operation. All sensor specific date
+       operations now abide by the SENSOR_UTC variable. The manual has also been
+       updated regarding the configuration of UTC synchronisation.
+	   
+     * Sensor Cleanup. The self cleaning operation of sensor log files has been
+       updated to ensure more reliability. The directory navigation issue has
+	   been removed.
+
+
+2009-01-24 - NSMnow 1.3.2
+  [*] Improvements.
+     * UTC logging. Fixed another regression with the UTC option not being 
+       strictly adhered to. This can cause timewarps between the snort data
+       and sancp data.
+
+
+2009-01-22 - NSMnow 1.3.1
+  [*] Improvements.
+     * sancp. Fixed a small regression in the logging location of sancp data
+       and where the sancp_agent was looking for it.
+
+     * LOG/PID files. Fixed an issue with /var/run being cleaned up on system
+       reboots, which prevented from sensor/server services starting up after
+       said reboot. LOG/PID directories are now dynamically created prior to
+       to starting services as appropriate.
+
+
+  [*] Improvements.
+2009-01-20 - NSMnow 1.3
+  [*] Additions.
+     * Server Sensor Management. Some additional management was added into the
+       mix to take into account a server's awareness of the sensors that will
+       connect to it and more specifically it's default Snort rule sets.
+
+  [*] Improvements.
+     * barnyard2. A temporary fix to the barnyard2 configuration generation has
+       been applied that caters for a small error in barnaryd2's parsing of the
+       sguil configuration file.
+
+     * snort. The primary snort link has been updated to version 2.8.3.2, with
+       the fallback links being limited to the 2.8.3 branch.
+
+
+2009-01-17 - NSMnow 1.2.3
+  [*] Improvements
+     * Server Deletion. Fixed issue with database remaining when deleting a
+       server. If a server was deleted and some time later a server was created
+       with the same name it would fail due to the left over database.
+
+
+2009-01-16 - NSMnow 1.2.2
+  [*] Improvements
+     * Interfacing. Fixed issue of long interface definitions being passed
+       directly to the commandline of snort and sancp causing errors. The short
+       version of the definition is now correctly parsed.
+
+     * Startup Scripts. The original (non-generic) init scripts have been 
+       deprecated to use the NSM Administration functions. The crontab entry
+       for daily log file rotation has been updated.
+
+     * Documentation. Additional examples have been added to the manual of the
+       NSM administration scripts.
+
+
+2009-01-15 - NSMnow 1.2.1
+  [*] Improvements
+     * Database Naming. Fixed an incorrect legacy default value in NSMnow.conf
+       which did not conform to the new database naming convention.
+
+     * mysql. With mysql an essential part of the server, the check to ensure
+       it is started before the sguil server process is started as been 
+       included.
+     
+     * Administration. Several bug fixes in the administration scripts have
+       been addressed primarily focussed around the editing of parameters.
+
+  [*] Acknowledgements
+     * Tom Buelens - for his contributions
+
+
+2009-01-11 - NSMnow 1.2.0
+  [*] Improvements
+     * Uninstall. Like all friendly applications, NSMnow allows you to remove
+       itself and all associated files if you choose to do so.
+
+     * Administration. The inclusion of the NSM Adminstration scripts brings
+       additional improvments to our standardised NSM framework. They provide
+       a unified method of adding, removing and editing all components of the
+       NSM framework such as sensors and servers.
+
+     * barnyard2. The version of barnyard2 has been upgraded to 2-1.0, the new
+       and completely GPLv2 friendly variety.
+
+
+2008-11-12 - NSMnow 1.1.1
+  [*] Improvements
+     * sancp. There has been a regression of sancp 1.6.2-release.C back to 
+       version 1.6.1-stable. Given its temperamental issues of flushing its
+       statistics to files.
+     
+     * barnyard2. The version of barnyard2 has been upgraded to version 2-0.5
+
+
+2008-10-15 - NSMnow 1.1.0
+  [*] Additions
+     * Snort. Given the rather rapid progression that Snort goes through, there
+       is quite a good chance that NSMnow can break due to a new version and
+       links being changed on their main site. Some fallback URL's have been
+       added to ensure that NSMnow will be more tolerant to new Snort releases.
+
+     * Status Messaging. The status messaging of the init scripts has undergone
+       some overhaulin' to ensure uniformity. I too have always thought that
+       pretty is a feature so this just makes me happy.
+
+
+  [*] Improvements
+     * Init Scripts. The init scripts have undergone some major restructuring
+       and a number of corner case bugs found and erradicated. A reduction in
+       complexity and simplified logic flow was the main aim here.
+
+     * Downloading. The downloading of source tarballs is a little more fault
+       tolerant to failed downloads. In the event of a failed download it will
+       also attempt to clean up and provide the appropriate indications to the
+       user instead of borking in some non-informative manner.
+
+     * Cron Jobs. The daily restarting of the snortl init script has been moved
+       from the cron.daily folders that are available on Debian based systems
+       to the default crontab folder available on most systems.
+
+
+2008-09-16 - NSMnow 1.0.2
+  [*] Improvements
+     * Dependencies. Removed legacy dependancy on OS.pm that caused some issues
+       with the pre-check routines.
+
+     * Lenny Compatability. Updated package requirements in order to maintain
+       full compatibility with Debian "Lenny".
+
+
+2008-08-31 - NSMnow 1.0.1
+  [*] Additions
+     * Pre-checking. The PERL core is now wrapped in a little BASH to ensure
+       that NSMnow has all pre-requisites to function correctly. Similarly only
+       Debian/Ubuntu systems have been tested at this stage with a view to
+       branch later on. Two new parameters, "-F" and "-S" are available as part
+       of the pre-checking system.
+
+     * Versioning. You can now check what version of NSMnow you are running. A
+       rather useful function if stability issues and fixes are going to become
+       a regular affair :)
+
+
+  [*] Improvements
+     * mysql. Configuring mysql with root passwords should be a little easier
+       now and a little less cryptic not knowing if one has been set or not.
+
+     * sancp. With the URL changing recently for sancp-1.6.1 we thought we
+       might as well push forward to the 1.6.2-release.C version which has seen
+       considerable testing since June of last year and also addresses the bugs
+       found in 1.6.1.
+
+     * Downloading. Fixed small issue regardig the download only mode with the
+       buildessential, tcl and sguiltools modules. If you choose not to
+       download then it will not fail since the package management systems will
+       attempt to download when installing.
+
+     * Reconfigure. Fixed issue with tcl module returning an incorrect error
+       code when it was already configured.
+
+     * Links. Fixed link to sancp download, which has recently been updated
+       due to the recent 1.6.2 release candidate was announced. That was good
+       time ;)
+
+     * Dependencies. Removed the LWP dependency by now using the ever reliable
+       wget utility from the system. This greatly reduces the complexity of
+       downloading the required source tarballs.
+
+     * Time. Fixed off by one issue with months in the log files. Clearly not
+       a show stopper, however, it pays to be thorough.
+
+
+2008-08-26 - NSMnow 1.0
+  [*] Initial Release

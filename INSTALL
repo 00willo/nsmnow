@@ -1,0 +1,36 @@
+
+------------------------------------------------------------------------------
+0. INTRODUCTION - QUICK INSTALLATION
+------------------------------------------------------------------------------
+
+NSMnow requires certain perl modules to be installed, if you get errors 
+about missing perl modules read the README for tips on configuring perl.
+
+To install a complete NSM all-in-one (i.e. sensor, server and client) solution
+then with root priveleges, from the NSMnow directory, run:
+
+# ./NSMnow -i -y
+
+
+------------------------------------------------------------------------------
+1. TESTING
+------------------------------------------------------------------------------
+
+The sensor and server components can be started quickly with:
+
+# nsm --all --start
+
+To connect to the server with the client then as the current logged in X user
+simply type:
+
+$ sguil.tk
+
+The sensor and server components can be stopped just as quickly with:
+
+# nsm --all --stop
+
+Read the provided MANUAL for options or run ./NSMnow -help
+
+For detailed tips and guides on what NSMnow installs how the system is
+configured see the project page at http://www.securixlive.com/nsmnow/ 
+ 

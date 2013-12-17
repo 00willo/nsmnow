@@ -1,0 +1,8 @@
+# /etc/cron.d/sensor-newday
+#
+# crontab entry to restart the snort logging script ensuring rotation of logs.
+
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+0 0	* * * root /usr/local/sbin/nsm --sensor --restart --only-snort-logging >> /var/log/nsm/sensor-newday.log

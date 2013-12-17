@@ -2,7 +2,7 @@
 0. MANUAL
 ------------------------------------------------------------------------------
 
-NSMnow Version 1.6.1
+NSMnow Version 1.6.2
 
 This MANUAL contains the command usage and details of the appropriate options
 of the NSM Adminstration scripts. 
@@ -10,6 +10,12 @@ of the NSM Adminstration scripts.
 If you have any questions or comments about the NSMnow scripts then please
 direct them to the SecurixLive Team <dev@securixlive.com>.
 
+Contents:
+  1. Copyright
+  2. Description
+  3. Command Usage
+  4. Installation
+  5. Troubleshooting
 
 ------------------------------------------------------------------------------
 1. COPYRIGHT
@@ -38,14 +44,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 ------------------------------------------------------------------------------
 
 NSMnow is an open source tool to automate the installation and configuration
-of a Network Security Monitoring framework (NSM) built on sguil. Its primary 
+of a Network Security Montoring framework (NSM) built on Sguil. Its primary 
 use is to allow the user to deploy and build an NSM framework without the
-hassle of compiling, installing, and configuring all the tools separately.
+hassle of compiling, installing, and configuring all the tools seperately.
 
 NSMnow essentially has 2 modes of operation: 
   1. an interactive install, and
   2. a non-interactive install.  
-      
+	  
 In interactive mode you will be asked a series of questions throughout the 
 installation process giving you the option to skip or install that component.
 
@@ -67,7 +73,7 @@ Command line:
 Usage: NSMnow [options]
 
 Options:
-    -c <file>
+    -c <file>  
         Defines an alternative configuration <file>. The default configuration
         file that is used is NSMnow.conf which is located in the base
         directory along with the NSMnow executable.
@@ -92,6 +98,8 @@ Options:
         will also attempt to download system specific packages and libraries
         using the native package management systems.
 
+    -V  Show version information
+
     -?  Show this help
 
 
@@ -103,6 +111,9 @@ Long Options:
     --package=app
         Explicitly define the packages that you want to perform the actions
         on. Multiple directives are not currently supported.
+
+    --version
+        Same as -V
 
     --help
         Same as -?
@@ -116,11 +127,11 @@ Available packages:
     server          - All server specific components
     client          - All client specific components
 
-    snort           - Snort v2.8.4.1
+    snort           - Snort v2.8.5
     sguilclient     - Sguil v0.7.0 (client components only)
     sguilsensor     - Sguil v0.7.0 (sensor components only)
     sguilserver     - Sguil v0.7.0 (server components only)
-    barnyard2       - Barnyard v2.1.6
+    barnyard2       - Barnyard v2-1.7
     sancp           - Sancp v1.6.1-stable
     sguiltools      - Sguil tools: wireshark, p0f, tcpdump and tcpflow
 
@@ -130,21 +141,21 @@ Available packages:
 ------------------------------------------------------------------------------
 
 To install a complete NSM all-in-one (i.e. sensor, server and client) solution
-then with root privileges, from the NSMnow directory, run:
+then with root priveleges, from the NSMnow directory, run:
 
 # ./NSMnow -i
 
-Alternatively you can choose to install the components separately using the
+Alternatively you can choose to install the components seperately using the
 the package keyword to explicitly define your packages. Multiple package
 definitions are not currently supported.
 
-For example the following will install an NSM client:
+For example the following will install an NSM client, with default options:
 
-# ./NSMnow -i --package=client
+# ./NSMnow -i --package=client -y
 
-And for an NSM sensor only:
+And for an NSM sensor only, with default options (ie no prompts):
 
-# ./NSMnow -i --package=sensor
+# ./NSMnow -i --package=sensor -y
 
 
 When installing the packages NSMnow will determine if the source tarballs and
@@ -189,7 +200,7 @@ The sensor and server components can be stopped just as quickly with:
 Read the provided MANUAL for options or run ./NSMnow -help
 
 For detailed tips and guides on what NSMnow installs how the system is
-configured see the project page at http://www.securixlive.com/nsmnow/
+configured see the project page at http://www.securixlive.com/nsmnow/ 
  
 
 ------------------------------------------------------------------------------
@@ -219,7 +230,7 @@ to the log file. This ensures that everything is captured when troubleshooting.
 This also may appear that nothing is happening. However, you are able to get a
 full picture of what is going on by tailing the log file. We do this
 extensively during testing to get the full picture of what is happening.
-        
+		
 # tail -f ./NSMnow.log
 
 
@@ -267,3 +278,4 @@ update the rules. I will first update the rules on the sensor under that will
 exist at "/etc/nsm/thor/rules" and ensure the corresponding *.map files are also
 updated at "/etc/nsm/thor". Secondly I'll ensure the same rules are updated on
 the server under the "/nsm/server_data/athena/rules/thor".
+

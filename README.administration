@@ -1,0 +1,1075 @@
+
+------------------------------------------------------------------------------
+0. SUMMARY
+------------------------------------------------------------------------------
+
+This MANUAL contains the command usage and details of the appropriate options
+of the NSM Adminstration scripts. 
+
+If you have any questions or comments about the NSMnow scripts then please
+direct them to the SecurixLive Team <dev@securixlive.com>.
+
+
+------------------------------------------------------------------------------
+1. OVERVIEW
+------------------------------------------------------------------------------
+
+All administration functions can be executed in either a command line mode or a
+graphic mode (based on Dialog). The command line is the default with the
+graphic mode enabled via th switch "-d" or "--dialog".
+
+The options of the NSM Administration scripts are predominantly long options in
+order to be informative and descriptive.
+
+There are a number of common options amongst allscripts. They are defined as 
+follows:
+
+    -d, --dialog
+        Use the graphic mode (based on Dialog) of propmting instead of the 
+        standard command line mode.
+
+    -y, --force-yes
+        Enable the default selection for all user prompted values. This should
+        be carefully invoked and only if you are sure you can accept the
+        default values.
+
+    -V, --version
+        Show version information.
+
+    -?, --help
+        Show usage information.
+ 
+
+------------------------------------------------------------------------------
+2. GENERAL FUNCTIONS
+------------------------------------------------------------------------------
+
+General management involves the starting, stopping, restarting, statusing and
+backing up of particular server(s) and sensor(s). All functions are capable of
+being invoked individually as described below or via the next level generic
+wrappers nsm_sensor and nsm_server.
+
+The usage of nsm is:
+
+nsm [options]
+
+Options:
+
+    --sensor
+        See nsm_sensor
+
+    --server
+        See nsm_senver
+
+    --all
+        Performs actions on both server and sensor, respectively.
+
+
+------------------------------------------------------------------------------
+3. SERVER FUNCTIONS
+------------------------------------------------------------------------------
+
+1. Server Management (nsm_server)
+
+Server management involves the creation, deletion, edition, starting, stopping,
+restarting, statusing and backing up of a particular server. All functions are
+capable of being invoked individually as describred below or via the generic
+nsm_server wrapper.
+
+The usage of nsm_server is:
+
+nsm_server [options]
+
+Options:
+
+    --add
+        See nsm_server_add
+
+    --del
+        See nsm_server_del
+
+    --edit
+        See nsm_server_edit
+
+    --start 
+        See nsm_server_ps-start
+
+    --stop  
+        See nsm_server_ps-stop
+
+    --restart
+        See nsm_server_ps-restart
+
+    --status
+        See nsm_server_ps-status
+
+    --backup-config
+        See nsm_server_backup-config
+
+    --backup-data
+        See nsm_server_backup-data
+
+
+1.1. Add/New (nsm_server_add)
+
+Create a new, or add an existing, server configuration to the current host.
+This command will generate the required server data directories and associated
+configuration files.
+
+The minimum information required to build a server is its name, with all other
+information capable of defaulting to reasonable values.
+
+The usage of nsm_server_add is:
+
+nsm_server_add [options]
+
+Options:
+
+    --server-name=<name>
+        Define the name of server as <name>. The server names on a single host
+        must be unique in order to prevent inadvertant corruption of a server's
+        configuration or data.
+
+    --server-sensor-port=<port>
+        Define the local port on this host that any local or external sensors
+        will connect to. This port must deconflict with other hosted services
+        on this host.
+
+        The default value is "7736"
+
+    --server-client-port=<port>
+        Define the local port on this host that any local or external clients
+        will connect to. This port must deconflict with other hosted services
+        on this host.
+
+        The default value is "7734"
+
+    --server-db-name=<name>
+        Define name of locally host database, that will store the sguil server
+        specific information, as <name>. This name must deconflict with any
+        existing databases already present.
+
+        The default value is "servername_db"
+
+    --server-db-user=<user>
+        Define the user of the locally hosted database, that will have acces to
+        sguil server specific information, as <user>. This user must deconflict
+        with any existing users already present.
+
+        The default value is "sguil"
+
+    --server-db-pass=<pass>
+        Define the password for the user of the locally hosted database, that
+        will have acces to sguil server specific information, as <pass>.
+
+        The default value is "password"
+
+    --server-client-user=<user>
+        Define the username of the initial authorised client as <user>. This is
+        required to ensure there is a valid user than can authenticate to the
+        server remotely.
+
+        The default value is "sguil"
+
+    --server-client-pass=<pass>
+        Define the password of initial authorised client as <pass>.
+
+        The default value is "password"
+
+    --server-auto=yes|no
+        Allow the server to be automatically assumed when server names are not
+        explicitly defined. This allows for implicit starting and stopping of
+        all "auto" enabled servers.
+
+        The default value is "no"
+
+
+1.2. Remove/Delete (nsm_server_del)
+
+Remove, or delete, an existing server configuration from the current
+host. This command will remove the appropriate server data directories, which
+contain any collected data, and associated configuration files.
+
+The usage of nsm_server_del is:
+
+nsm_server_del [options]
+
+Options:
+	
+    --server-name=<name>
+        Define the name of server you wish to delete.
+
+
+1.3. Edit (nsm_server_edit)
+
+Edit, or update, an existing server configuration on the current host. This
+allows any parameter originally defined to be changed or modified.
+
+If no parameters are defined then an interactive edit session will occur with
+every server option being presented for modification. You can explicity define
+which server options you want to modify directly on the command line using the
+options described below.
+
+The default values for any interactive options will be the current value. This
+means that a "-y" or "--force-yes" directive will not modify any non-explicitly
+defined values, allowing for single modifications to be made via the command
+line. Some examples are given after the usage.
+
+Note: Not all parameters initially defined when adding a server can be edited,
+which is most applicable to the database credentials.
+
+The usage of nsm_server_edit is:
+
+nsm_server_edit [options]
+
+Options:
+	
+    --server-name=<name>
+        Define the name of server you wish to edit/update.
+
+    --new-server-name=<name>
+        Update the current name of server to <name>.
+
+    --server-sensor-port=<port>
+        Update the listening port that sensors will connect to.
+
+    --server-client-port=<port>
+        Update the listening port that clients will connect to.
+
+    --server-client-user=<user>
+        Update the username of the initial authorised client.
+
+    --server-client-pass=<pass>
+        Update the password of the initial authorised client.
+
+    --server-auto=yes|no
+        Allow the server to be automatically assumed when server names are not
+
+
+1.4. Clear (nsm_server_clear)
+
+Clear, or reset, an existing servers collected information. This command will
+remove the appropriate server data files which contain any collected data.
+
+The usage of nsm_server_clear is:
+
+nsm_server_clear [options]
+
+Options:
+	
+    --server-name=<name>
+        Define the name of server you wish to clear.
+
+
+2. Server User Management
+
+Server User management involves the adding and deltion of new users to the
+server. User access to the server allows for unique client credentials to be
+used with the sguil client.
+
+The Server User Management is not wrapped by any of the higher level wrappers
+such as "nsm_server" nor "nsm".
+
+
+2.1 Add (nsm_server_user-add)
+
+This will add a new user and grant privilege to access to the server from a
+client.
+
+The usage of nsm_server_user-add is:
+
+nsm_server_user-add [options]
+
+Options:
+
+    --server-name
+        The server name for which the user is being added to.
+
+    --user-name
+        The name of the new user that will be connecting to the server.
+
+    --user-pass
+        The password of the new user that will be connecting to the server.
+
+
+2.1 Delete (nsm_server_user-del)
+
+This will delete a user and associated access from the server.
+
+The usage of nsm_server_user-del is:
+
+nsm_server_user-del [options]
+
+Options:
+
+    --server-name
+        The server name for which the user will be deleted from.
+
+    --user-name
+        The name of the user that will be deleted from the server.
+
+
+3. Server Sensor Management
+
+Server Sensor management involves the adding and deltion of sensor awareness to
+the server. Sensor awareness is that the server is aware of the sensors that is
+connecting to it. The primary reason for this requirement is in the matching of
+rules to alerts. It is possible to have different rule sets across different
+sensors. These rules sets must be synchronised with the rule sets on the server
+associated to each particular sensor.
+
+The NSM administration scripts provides only simple tracking for the default
+rule sets supplied with NSMnow. Any custom rule set synchronisation must be done
+as a seperate manual task on both the sensor and server.
+
+The Server Sensor Management is not wrapped by any of the higher level wrappers
+such as "nsm_server" nor "nsm".
+
+
+3.1 Add (nsm_server_sensor-add)
+
+This will add sensor awareness to a server by configuring the default Snort rule
+set.
+
+The usage of nsm_server_sensor-add is:
+
+nsm_server_sensor-add [options]
+
+Options:
+
+    --server-name
+        The server name for which the sensor is being added to.
+
+    --sensor-name
+        The sensor name that will be connecting to the server, thus requiring
+        it's awareness.
+
+
+3.1 Delete (nsm_server_sensor-del)
+
+This will remove the appropriate sensor awareness of a server by removing the 
+default Snort rule set associated with the specified sensor name.
+
+The usage of nsm_server_sensor-del is:
+
+nsm_server_sensor-del [options]
+
+Options:
+
+    --server-name
+        The server name for which the sensor is being removed from.
+
+    --sensor-name
+        The sensor name that will have it's awareness removed.
+
+
+4. Backup
+
+
+4.1. Server Data (nsm_server_backup-data)
+
+Backup an existing server's collected data to a specified location. All
+collected data is archived into a gzipped tarball at the user specified
+location.
+
+The collected data consists of all information in the resepective data
+directory (typially /nsm/server_data) and the corresponding mysql database.
+
+The usage of nsm_server_backup-data is:
+
+nsm_server_backup-data [options]
+
+Options:
+	
+    --server-name=<name>
+        Define the name of server you wish to backup the collected data of.
+
+    --backup-file=<path>
+        Specify the full backup file path as <path>. The final directory should
+        exist otherwise the script will indicate it doesn't and exit.
+
+
+4.2. Server Configuration (nsm_server_backup-config)
+
+Backup an existing server's configuration to a specified location. All
+configurations are archived into a gzipped tarball at the user specified
+location.
+
+The usage of nsm_server_backup-config is:
+
+nsm_server_backup-config [options]
+
+Options:
+	
+    --server-name=<name>
+        Define the name of server you wish to backup the configuration of.
+
+    --backup-file=<path>
+        Specify the full backup file path as <path>. The final directory should
+        exist otherwise the script will indicate it doesn't and exit.
+
+
+5. Process management
+
+
+5.1. Start (nsm_server_ps-start)
+
+Start a single server (due to the limitations of sguil server), on the current
+host.
+
+There is no minimum of information required. If no information is provided then
+all auto assumed servers, as defined in the servertab file, will be actioned.
+Alterantively a server name directive can be explicitly defined.
+
+The usage of nsm_server_ps-start is:
+
+Options:
+
+    --server-name=<name>
+        Explicitly define the server as <name> on which to action.
+
+
+5.2. Stop (nsm_server_ps-stop)
+
+Stop a single server (due to the limitations of sguil server), on the current
+host.
+
+There is no minimum of information required. If no information is provided then
+all auto assumed servers, as defined in the servertab file, will be actioned.
+Alterantively a server name directive can be explicitly defined.
+
+The usage of nsm_server_ps-stop is:
+
+Options:
+
+    --server-name=<name>
+        Explicitly define the server as <name> on which to action.
+
+
+5.3. Restart (nsm_server_ps-restart)
+
+Restart a single server (due to the limitations of sguil server), on the current host.
+
+There is no minimum of information required. If no information is provided then
+all auto assumed servers, as defined in the servertab file, will be actioned.
+Alterantively a server name directive can be explicitly defined.
+
+The usage of nsm_server_ps-restart is:
+
+Options:
+
+    --server-name=<name>
+        Explicitly define the server as <name> on which to action.
+
+
+5.4. Status (nsm_server_ps-status)
+
+Get the status of a single server (due to the limitations of sguil server), on
+the current host.
+
+There is no minimum of information required. If no information is provided then
+all auto assumed servers, as defined in the servertab file, will be actioned.
+Alterantively a server name directive can be explicitly defined.
+
+The usage of nsm_server_ps-status is:
+
+Options:
+
+    --server-name=<name>
+        Explicitly define the server as <name> on which to action.
+
+
+------------------------------------------------------------------------------
+4. SENSOR FUNCTIONS
+------------------------------------------------------------------------------
+
+1. Sensor Management (nsm_sensor)
+
+Sensor management involves the creation, deletion, edition, starting, stopping,
+restarting, statusing and backing up of a particular sensor. All functions are
+capable of being invoked individually as describred below or via the generic
+nsm_sensor wrapper.
+
+The usage of nsm_sensor is:
+
+nsm_sensor [options]
+
+Options:
+
+    --add
+        See nsm_sensor_add
+
+    --del
+        See nsm_sensor_del
+
+    --edit
+        See nsm_sensor_edit
+
+    --start 
+        See nsm_sensor_ps-start
+
+    --stop  
+        See nsm_sensor_ps-stop
+
+    --restart
+        See nsm_sensor_ps-restart
+
+    --status
+        See nsm_sensor_ps-status
+
+    --backup-config
+        See nsm_sensor_backup-config
+
+    --backup-data
+        See nsm_sensor_backup-data
+
+
+1.1. Add/New (nsm_sensor_add)
+
+Create a new, or add an existing, sensor configuration to the current host.
+This command will generate the required sensor data directories and associated
+configuration files.
+
+The minimum information required to build a sensor is its name, with all other
+information capable of defaulting to reasonable values.
+
+The usage of nsm_sensor is:
+
+nsm_sensor_add [options]
+
+Options:
+
+    --sensor-name=<name>
+        Define the name of sensor as <name>. The sensor names on a single host
+        must be unique in order to prevent inadvertant corruption of a sensor's
+        configuration or data.
+
+        Ideally a sensor's name should be unique amongst the entire monitoring
+        network, primarily to aid troubleshooting but also easing identification
+        of collected data sources.
+
+    --sensor-interface=<iface>
+        Define the sensing interface of the sensor as <iface>. The interface
+        name can take two forms of syntax. The first form is the interface name
+        as seen in ifconfig (e.g. "eth0" or "ath0"). The second form is for the
+        bonding of two or more physical interfaces as a single virtual
+        interface. For the latter, bonding must be supported by the kernel.
+
+        Some examples of both types are shown below:
+
+            1. "eth0"
+              - this will monitor the local ethernet connection eth0
+
+            2. "bond0:eth0,eth1"
+              - this will monitor the virtual bonded network bond0, which is
+                the bonding of the local ethernet connections eth0 and eth1.
+                Bonded network interfaces must be defined from 0 upwards.
+
+        The default value is "eth0"
+
+    --sensor-interface-auto=yes|no
+        Allow the sensor interface to be automatically configured when starting
+        or restarting the sensor. This ensures that, as appropriate, interfaces
+        are bonded, configured to a non-routable IP of 0.0.0.0, are up, and are
+        in promiscuous mode.
+
+        The default value is "no"
+
+    --sensor-server-host=<ip>
+        Define the network IP of the server that this sensor will report to.
+        The server host is the correlation and fusion centre for all sensor
+        collected data.
+
+        The default value is "localhost"
+
+    --sensor-server-port=<port>
+        Define the network port of the server that this sensor will report to.
+
+        The default value is "7736"
+
+    --sensor-barnyard2-port=<port>
+        Define a local network port of this host that the sensor will use to
+        communicate with barnyard2 and the logged Snort alerts.
+
+	The default value is "7735"
+
+    --sensor-auto=yes|no
+        Allow the sensor to be automatically assumed when sensor names are not
+        explicitly defined. This allows for implicit starting and stopping of
+        all "auto" enabled sensors.
+
+        The default value is "no"
+
+    --sensor-net-group=<id>
+        Defines a net group identifier as <id> for which the sensor is part of.
+        This allows a number of sensors to be grouped as one sensor group, which
+        is useful for multiple egress/ingress points to one asset being 
+        monitored.
+
+    --sensor-utc=yes|no
+        Determines if the sensor is to log in UTC (aka GMT) mode or local time
+        mode. If sensors are for some reason spread across different time zones
+        then it is more convenient to log in UTC and avoid any potential issues
+        caused by timeshifts.
+
+        The default value is "yes"
+
+    --sensor-vlan-tagging=yes|no
+        Determines if the sensor should be aware of VLAN tagged packets. If you
+        are monitoring a VLAN, GRE or similar encapsulated protocol then this
+        should be enabled.
+
+        The default value is "no"
+
+ 
+1.2. Remove/Delete (nsm_sensor_del)
+		
+Remove, or delete, an existing sensor configuration from the current
+host. This command will remove the appropriate sensor data directories, which
+contain any collected data, and associated configuration files.
+
+The usage of nsm_sensor_del is:
+
+nsm_sensor_del [options]
+
+Options:
+	
+    --sensor-name=<name>
+        Define the name of sensor you wish to delete.
+
+
+1.3. Edit sensor details (nsm_sensor_edit)
+
+Edit, or update, an existing sensor configuration on the current host. This
+allows any parameter originally defined to be changed or modified.
+
+If no parameters are defined then an interactive edit session will occur with
+every sensor option being presented for modification. You can explicity define
+which sensor options you want to modify directly on the command line using the
+options described below.
+
+The default values for any interactive options will be the current value. This
+means that a "-y" or "--force-yes" directive will not modify any non-explicitly
+defined values, allowing for single modifications to be made via the command
+line.
+
+The usage of nsm_sensor_edit is:
+
+nsm_sensor_edit [options]
+
+Options:
+	
+    --sensor-name=<name>
+        Define the name of sensor you wish to edit/update.
+
+    --new-sensor-name=<name>
+        Update the current name of sensor to <name>.
+
+    --new-sensor-interface=<iface>
+        Update the current sensing interface to <iface>.
+
+    --new-sensor-interface-auto=yes|no
+        Update if the sensor interface can be autoconfigured.
+
+    --new-sensor-server-host=<ip>
+        Update the current IP of the server host to <ip>.
+
+    --new-sensor-server-port=<port>
+        Update the current port of the server host to <port>.
+
+    --new-sensor-barnyard2-port=<port>
+        Update the current local listening port for barnyard2 to <port>.
+
+    --new-sensor-auto=yes|no
+        Update if sensor can be auto assumed.
+
+    --new-sensor-net-group=<id>
+        Update the current net group identifier to <id>.
+
+    --new-sensor-utc=yes|no
+        Update if sensor logs in UTC mode.
+
+    --new-sensor-vlan-tagging=yes|no
+        Update if sensor uses VLAN tagging.
+
+
+1.4. Clear (nsm_sensor_clear)
+
+Clear, or reset, an existing sensors collected information. This command will
+remove the appropriate sensor data files which contain any collected data.
+
+The usage of nsm_sensor_clear is:
+
+nsm_sensor_clear [options]
+
+Options:
+	
+    --sensor-name=<name>
+        Define the name of sensor you wish to clear.
+
+
+2. Backup
+
+
+2.1. Sensor Data (nsm_sensor_backup-data)
+
+Backup an existing sensor's collected data to a specified location. All
+collected data is archived into a gzipped tarball at the user specified
+location.
+
+The usage of nsm_sensor_backup-data is:
+
+nsm_sensor_backup-data [options]
+
+Options:
+	
+    --sensor-name=<name>
+        Define the name of sensor you wish to backup the collected data of.
+
+    --backup-file=<path>
+        Specify the full backup file path as <path>. The final directory should
+        exist otherwise the script will indicate it doesn't and exit.
+
+
+2.2. Sensor Configuration (nsm_sensor_backup-config)
+
+Backup an existing sensor's configuration to a specified location. All
+configurations are archived into a gzipped tarball at the user specified
+location.
+
+The usage of nsm_sensor_backup-config is:
+
+nsm_sensor_backup-config [options]
+
+Options:
+	
+    --sensor-name=<name>
+        Define the name of sensor you wish to backup the configuration of.
+
+    --backup-file=<path>
+        Specify the full backup file path as <path>. The final directory should
+        exist otherwise the script will indicate it doesn't and exit.
+
+
+3. Process management
+
+
+3.1. Start (nsm_sensor_ps-start)
+
+Start a single sensor, or mulitple sensors, on the current host.
+
+There is no minimum of information required. If no information is provided then
+all auto assumed sensors, as defined in the sensortab file, will be actioned.
+Alterantively a sensor name, or multiple sensor name directives can be
+explicitly defined.
+
+The usage of nsm_sensor_ps-start is:
+
+Options:
+
+    --sensor-name=<name>
+        Explicitly define the sensor as <name> on which to action. Mulitple
+	directives can be used.
+
+    --only-barnyard2
+        Only start the barnyard2 sub-process.
+
+    --only-sancp
+        Only start the sancp sub-process
+
+    --only-snort-alert
+        Only start the snort (alert data) sub-process
+
+    --only-snort-logging
+        Only start the snort (full packet data) sub-process
+
+    --only-pcap_agent
+        Only start the pcap_agent sub-process
+
+    --only-sancp_agent
+        Only start the sancp_agent sub-process
+
+    --only-snort_agent
+        Only start the snort_agent sub-process
+
+    --skip-barnyard2
+        Skip the starting of the barnyard2 sub-process.
+
+    --skip-sancp
+        Skip the starting of the sancp sub-process
+
+    --skip-snort-alert
+        Skip the starting of the snort (alert data) sub-process
+
+    --skip-snort-logging
+        Skip the starting of the snort (full packet data) sub-process
+
+    --skip-pcap_agent
+        Skip the starting of the pcap_agent sub-process
+
+    --skip-sancp_agent
+        Skip the starting of the sancp_agent sub-process
+
+    --skip-snort_agent
+        Skip the starting of the snort_agent sub-process
+
+
+3.2. Stop (nsm_sensor_ps-stop)
+
+Stop a single sensor, or mulitple sensors, on the current host.
+
+There is no minimum of information required. If no information is provided then
+all auto assumed sensors, as defined in the sensortab file, will be actioned.
+Alterantively a sensor name, or multiple sensor name directives can be
+explicitly defined.
+
+The usage of nsm_sensor_ps-stop is:
+
+Options:
+
+    --sensor-name=<name>
+        Explicitly define the sensor as <name> on which to action. Mulitple
+	directives can be used.
+
+    --only-barnyard2
+        Only stop the barnyard2 sub-process.
+
+    --only-sancp
+        Only stop the sancp sub-process
+
+    --only-snort-alert
+        Only stop the snort (alert data) sub-process
+
+    --only-snort-logging
+        Only stop the snort (full packet data) sub-process
+
+    --only-pcap_agent
+        Only stop the pcap_agent sub-process
+
+    --only-sancp_agent
+        Only stop the sancp_agent sub-process
+
+    --only-snort_agent
+        Only stop the snort_agent sub-process
+
+    --skip-barnyard2
+        Skip the stopping of the barnyard2 sub-process.
+
+    --skip-sancp
+        Skip the stopping of the sancp sub-process
+
+    --skip-snort-alert
+        Skip the stopping of the snort (alert data) sub-process
+
+    --skip-snort-logging
+        Skip the stopping of the snort (full packet data) sub-process
+
+    --skip-pcap_agent
+        Skip the stopping of the pcap_agent sub-process
+
+    --skip-sancp_agent
+        Skip the stopping of the sancp_agent sub-process
+
+    --skip-snort_agent
+        Skip the stopping of the snort_agent sub-process
+
+
+3.3. Restart (nsm_sensor_ps-restart)
+
+Restart a single sensor, or mulitple sensors, on the current host.
+
+There is no minimum of information required. If no information is provided then
+all auto assumed sensors, as defined in the sensortab file, will be actioned.
+Alterantively a sensor name, or multiple sensor name directives can be
+explicitly defined.
+
+The usage of nsm_sensor_ps-restart is:
+
+Options:
+
+    --sensor-name=<name>
+        Explicitly define the sensor as <name> on which to action. Mulitple
+	directives can be used.
+
+    --only-barnyard2
+        Only restart the barnyard2 sub-process.
+
+    --only-sancp
+        Only restart the sancp sub-process
+
+    --only-snort-alert
+        Only restart the snort (alert data) sub-process
+
+    --only-snort-logging
+        Only restart the snort (full packet data) sub-process
+
+    --only-pcap_agent
+        Only restart the pcap_agent sub-process
+
+    --only-sancp_agent
+        Only restart the sancp_agent sub-process
+
+    --only-snort_agent
+        Only restart the snort_agent sub-process
+
+    --skip-barnyard2
+        Skip the restarting of the barnyard2 sub-process.
+
+    --skip-sancp
+        Skip the restarting of the sancp sub-process
+
+    --skip-snort-alert
+        Skip the restarting of the snort (alert data) sub-process
+
+    --skip-snort-logging
+        Skip the restarting of the snort (full packet data) sub-process
+
+    --skip-pcap_agent
+        Skip the restarting of the pcap_agent sub-process
+
+    --skip-sancp_agent
+        Skip the restarting of the sancp_agent sub-process
+
+    --skip-snort_agent
+        Skip the restarting of the snort_agent sub-process
+
+
+3.4. Status (nsm_sensor_ps-status)
+
+Get the status of a single sensor, or mulitple sensors, on the current host.
+
+There is no minimum of information required. If no information is provided then
+all auto assumed sensors, as defined in the sensortab file, will be actioned.
+Alterantively a sensor name, or multiple sensor name directives can be
+explicitly defined.
+
+The usage of nsm_sensor_ps-status is:
+
+Options:
+
+    --sensor-name=<name>
+        Explicitly define the sensor as <name> on which to action. Mulitple
+	directives can be used.
+
+    --only-barnyard2
+        Only status the barnyard2 sub-process.
+
+    --only-sancp
+        Only status the sancp sub-process
+
+    --only-snort-alert
+        Only status the snort (alert data) sub-process
+
+    --only-snort-logging
+        Only status the snort (full packet data) sub-process
+
+    --only-pcap_agent
+        Only status the pcap_agent sub-process
+
+    --only-sancp_agent
+        Only status the sancp_agent sub-process
+
+    --only-snort_agent
+        Only status the snort_agent sub-process
+
+    --skip-barnyard2
+        Skip the status of the barnyard2 sub-process.
+
+    --skip-sancp
+        Skip the status of the sancp sub-process
+
+    --skip-snort-alert
+        Skip the status of the snort (alert data) sub-process
+
+    --skip-snort-logging
+        Skip the status of the snort (full packet data) sub-process
+
+    --skip-pcap_agent
+        Skip the status of the pcap_agent sub-process
+
+    --skip-sancp_agent
+        Skip the status of the sancp_agent sub-process
+
+    --skip-snort_agent
+        Skip the status of the snort_agent sub-process
+
+
+------------------------------------------------------------------------------
+5. CLIENT FUNCTIONS
+------------------------------------------------------------------------------
+
+There are no adminstration specific requires for clients at this time.
+
+
+------------------------------------------------------------------------------
+6. EXAMPLES
+------------------------------------------------------------------------------
+
+The following examples are a broad overview of the capabilities that are
+provided by the NSM Administration scripts. They are here to show the level of
+flexibility offered by the new adminstrative framework.
+
+NOTE: All examples are performed as the root user.
+
+There is often a number of ways to perform a single task. Every task is broken
+down into a specific script that does that one task. The wrapper functions 
+will simply call these specific tasks and thus providing multiple ways to do
+the same thing. For example starting the sensor defined as "thor" can be
+achieved in one of three ways:
+
+  # nsm_sensor_ps-start --sensor-name=thor
+  # nsm_sensor --start --sensor-name=thor
+  # nsm --sensor --start --sensor-name=thor
+
+You can see the wrapper scripts building off of the last. In these examples the
+name has been explicitly defined. If no name is defined then the scripts will
+act on those that have "auto assumption" enabled. Auto assumption can be 
+examined in either the sensortab or servertab files under /etc/nsm with the
+value "1" in the "auto" column signifying that it is enabled. If the sensor
+"thor" has auto assumption enabled the above commands can all be simplified as:
+
+  # nsm_sensor_ps-start 
+  # nsm_sensor --start
+  # nsm --sensor --start
+
+This works for both sensors and servers alike. Where a machine is configured as
+both a sensor and server additional short cuts can be made using the "--all"
+directive. This is available in the "nsm" wrapper only and allows one to 
+peform the desired tasks (limited to start, stop, restart and status) on the
+server and then the sensor. For example to start an NSM sensor/server requires:
+
+  # nsm --all --start
+
+
+Of course all this starting and stopping is of no use if you don't have any
+sensors or servers to perform them on. So continuing from where where we left
+off, to add a new sensor defined as "thor" with the all default options enabled
+we could perform any of the following:
+
+  # nsm_sensor_add -y --sensor-name=thor
+  # nsm_sensor --add -y --sensor-name=thor
+  # nsm --sensor --add -y --sensor-name=thor
+
+
+In the event that any of the defaults are not to your liking then you can
+perform an interactive edit, on the command line, with either of the following:
+
+  # nsm_sensor_edit
+  # nsm_sensor --edit
+  # nsm --sensor --edit
+
+An interactive edit, using menu dialogs (via "dialog"), would be achieved by 
+adding the "-d" or "--dialog" directive, such as:
+
+  # nsm_sensor_edit -d
+
+
+To perform a simple rename of an existing sensor from "thor" to "aegis" then
+the following command will suffice:
+
+# nsm_sensor_edit -y --sensor-name=thor --new-sensor-name=aegis
+
+
+To delete the newly renamed sensor can be done via:
+
+# nsm_sensor_del --sensor-name=aegis

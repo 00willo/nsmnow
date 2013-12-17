@@ -1,0 +1,1363 @@
+#!/bin/bash
+#
+# Copyright (C) 2008-2009 SecurixLive   <dev@securixlive.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License Version 2 as
+# published by the Free Software Foundation.  You may not use, modify or
+# distribute this program under any other version of the GNU General
+# Public License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+
+#
+# Description:
+#	Main script that takes the user requirements and calls all appropriate sub
+# functions install and configure an NSM system with all dependancies.
+#
+
+CALLER_PATH="$0"
+CALLER_BASE="$(dirname $CALLER_PATH)"
+
+#
+# GLOBAL VARIABLES
+#
+PROMPT_SCRIPT="NSMnow ${NSM_VER_MAJOR}.${NSM_VER_MINOR}.${NSM_VER_REVISION} (build ${NSM_VER_BUILD})"
+VALID_PACKAGES="nsm mysql tcl buildessential snort barnyard2 sancp sguilsensor sguilclient sguilserver"
+
+# option variables
+ACTION=""
+CONF_PATH="${CALLER_BASE}/NSMnow.conf"
+LOG_PATH="${CALLER_BASE}/NSMnow.log"
+OPT_CACHE_FILE="/usr/share/nsmnow/.cache"
+VERBOSITY=1
+
+
+#
+# INSTALLATION LOCAL FUNCTIONS
+#
+
+component_includes_get()
+{
+    # grab inputs with sane defaulting
+    INCLUDE_BASE=${1:-}
+    
+    if [ -z "${INCLUDE_BASE}" ]
+    then 
+        INCLUDE_BASE="${CALLER_BASE}/lib"
+    fi
+
+    . $INCLUDE_BASE/lib-component-nsm.sh
+    . $INCLUDE_BASE/lib-component-buildessential.sh
+    . $INCLUDE_BASE/lib-component-barnyard2.sh
+    . $INCLUDE_BASE/lib-component-mysql.sh
+    . $INCLUDE_BASE/lib-component-sancp.sh
+    . $INCLUDE_BASE/lib-component-sguilclient.sh
+    . $INCLUDE_BASE/lib-component-sguilsensor.sh
+    . $INCLUDE_BASE/lib-component-sguilserver.sh
+    . $INCLUDE_BASE/lib-component-snort.sh
+    . $INCLUDE_BASE/lib-component-tcl.sh
+}
+
+copy_and_cache_files()
+{
+    # grab inputs with sane defaulting
+    SOURCE_PATH=${1:-}
+    SOURCE_NAMES=${2:-}
+    DESTINATION_PATH=${3:-}
+    DESTINATION_NAMES=${4:-}
+    PERMISSIONS=${5:-}
+    CACHE_GROUP=${6:-unknown}
+ 
+    # check parameters
+    if [ -z "${SOURCE_PATH}" -o -z "${SOURCE_NAMES}" -o -z "${DESTINATION_PATH}" ]
+    then
+	print_all "some mandatory arguments were not specified." 3
+        return 1
+    fi
+
+    # convert names to array and act on any source name wildcards
+    SOURCE_DIRS=""
+    if [ "${SOURCE_NAMES}" = "*" ]
+    then
+        FIND_OLD_DIR=$(pwd)
+    	cd "${SOURCE_PATH}"
+        SOURCE_NAMES=( $(ls -A1 ) )
+    	cd "${FIND_OLD_DIR}"
+    elif [ "${SOURCE_NAMES}" = "**" ]
+    then
+    	FIND_OLD_DIR=$(pwd)
+    	cd "${SOURCE_PATH}"
+    	SOURCE_DIRS=( $(find . -type d) )
+        SOURCE_NAMES=( $(find . -type f ) )
+    	cd "${FIND_OLD_DIR}"
+    else
+        SOURCE_NAMES=( $SOURCE_NAMES )
+    fi
+ 
+    # if no destinations are defined then treat the same as source names
+    if [ -z "${DESTINATION_NAMES}" ]
+    then
+	# copy source names array
+        DESTINATION_NAMES=( "${SOURCE_NAMES[@]}" )
+    else
+        DESTINATION_NAMES=( $DESTINATION_NAMES )
+    fi
+
+    if [ -z "${SOURCE_DIRS}" ]
+    then
+    	# ensure our destination path has been created
+    	create_dir "${DESTINATION_PATH}"
+        if [ ${?} -ne 0 ]
+        then
+            print_all "unable to create destination directory: ${DESTINATION_PATH}/" 3
+            return 1
+    	fi
+    else
+        for IDX in $(seq 0 $((${#SOURCE_DIRS[@]} - 1)))
+        do
+	    create_dir "${DESTINATION_PATH}/${SOURCE_DIRS[$IDX]}"
+            if [ ${?} -ne 0 ]
+            then
+                print_all "unable to create destination directory: ${DESTINATION_PATH}/${SOURCE_DIRS[$IDX]}" 3
+                return 1
+            fi 
+        done
+    fi
+	
+    # loop through all names copying and caching
+    for IDX in $(seq 0 $((${#SOURCE_NAMES[@]} - 1)))
+    do
+        print_log "Copying via cp: ${SOURCE_PATH}/${SOUCE_NAMES[$IDX]} -> ${DESTINATION_PATH}/${DESTINATION_NAMES[$IDX]##./}" 3
+        CMD="cp \"${SOURCE_PATH}/${SOURCE_NAMES[$IDX]}\" \"${DESTINATION_PATH}/${DESTINATION_NAMES[$IDX]}\""
+        system_log "${CMD}"
+        if [ ${?} -ne 0 ]
+        then
+            print_log "failed to copy." 4
+            return 1
+        fi
+
+        if [ -n "${PERMISSIONS}" ]
+        then
+            print_log "Changing permissions: ${DESTINATION_PATH}/${DESTINATION_NAMES[$IDX]##./} (${PERMISSIONS})" 3
+            CMD="chmod \"${PERMISSIONS}\" \"${DESTINATION_PATH}/${DESTINATION_NAMES[$IDX]}\""
+            system_log "${CMD}"
+            if [ ${?} -ne 0 ]
+            then
+                print_log "failed to set permissions" 4
+                return 1
+            fi
+        fi
+ 
+        print_log "Caching file: ${DESTINATION_PATH}/${DESTINATION_NAMES[$IDX]##./} (${CACHE_GROUP})" 3
+        cache_file_add "${DESTINATION_PATH}/${DESTINATION_NAMES[$IDX]}" "${CACHE_GROUP}"
+        if [ ${?} -ne 0 ]
+        then
+            print_log "failed to cache file" 4
+            return 1
+        fi
+    done
+ 
+    return 0
+}
+
+#
+# create_dir()
+#
+# Creates the specified directory path
+#
+# Arguments:
+#   - path (string)         output filepath to write to
+#
+# Returns:
+#   Zero (0) is returned on success with a non-zero (1) returned on any error.
+#
+create_dir()
+{
+	# grab input variables with sane defaulting
+    DIR_PATH=${1:-}
+	
+	# ensure parameters exist
+	if [ -z "${DIR_PATH}" ] 
+    then
+		print_log "no directory path specified for creation." 2
+        return 1
+    elif [ -d "${DIR_PATH}" ]
+    then
+        return 0
+    fi
+
+    mkdir -p "${DIR_PATH}"
+    if [ ${?} -ne 0 ]
+    then
+        print_log "unable to create directory: ${DIR_PATH}" 2
+        return 1
+    fi
+
+    return 0
+}
+
+debug_vals()
+{
+	# dump all configuration variables
+	for V in "GENERAL_BIN_DIR" "GENERAL_SBIN_DIR" "GENERAL_LIB_DIR" "GENERAL_DOWNLOAD_DIR" "GENERAL_SOURCE_DIR"
+	do
+		eval echo "${V}=\$${V}"
+	done
+}
+
+
+#
+# download_file()
+#
+# Downloads a file with controlled status messaging
+#
+# Arguments:
+#   - url (string)  		URL to download from
+#   - path (string)         output filepath to write to
+#
+# Returns:
+#   Zero (0) is returned on success with a non-zero (1) returned on any error.
+#
+download_file()
+{
+	# grab input variables with sane defaulting
+	URL_IN=${1:-}
+    PATH_OUT=${2:-}
+	
+	# ensure parameters exist
+	if [ -z "${URL_IN}" -o -z "${PATH_OUT}" ] 
+    then
+        return 1
+    fi
+
+	# ensure all paths exist and create if necessary
+	BASE_OUT="$(dirname $PATH_OUT)"
+	if [ ! -d "${BASE_OUT}" ]
+    then
+		print_all "Creating output directory: ${BASE_OUT}" 2
+
+        create_dir "${BASE_OUT}"
+        if [ ${?} -ne 0 ]
+        then
+            return 1
+        fi
+	fi
+
+	# wget the file
+	CMD="wget ${URL_IN} -O ${PATH_OUT} -a ${LOG_PATH}"
+	print_log "Downloading via wget: ${CMD}" 2
+	$CMD
+
+    # clean up if we failed
+    if [ ${?} -ne 0 ]
+    then
+        CMD="rm -f ${PATH_OUT}"
+	$CMD #TODO: Remove
+        if [ ${?} -ne 0 ]
+        then
+	        print_log "Unable to clean failed download: ${PATH_OUT}" 2
+        fi
+
+        return 1
+    fi
+
+	return 0;
+}
+
+#
+# general_error()
+#
+# Report a general error and indicate possible course of action.
+#
+general_error()
+{
+	# grab input variables with sane defaulting
+	MESSAGE=${1:-}
+
+	echo "ERROR: ${MESSAGE}"
+    echo
+    echo "Please refer to the following log file for more details:"
+    echo "  => ${LOG_PATH}"
+    echo
+	echo "If problems persist then please send a gzip'ed version of your log to"
+	echo "the SXL team <dev\@securixlive.com>."
+
+	exit 1
+}
+
+is_binary_installed()
+{
+    # grab inputs with sane defaulting
+    BINARY=${1:-}
+ 
+    # check parameters
+    if [ -z "${BINARY}" ]
+    then
+        return 1
+    fi
+ 
+    # search via which
+    system_log "which \"${BINARY}\""
+    return $?
+}
+
+#
+# nsm_upgrade()
+#
+# Checks online (via www.securixlive.com) if an upgrade is available to the 
+# NSMnow scripts.
+#
+# Upgradability is determined if the MD5 file version string supersedes the
+# current string.
+#
+# Should the action be set (ie. =1) then the upgrade will be performed.
+#
+# Arguments:
+#   action (integer)    determines if the upgrade should be performed
+#
+# Returns:
+#   Zero (0) is returned when an upgrade is avaliable otherwise a non-zero (1)
+# is returned.
+#
+nsm_upgrade_local()
+{
+    print_all "Upgrading the NSMnow scripts" 0
+
+	# grab input variables with sane defaulting
+    UPDATES_APPLY=${1:-1}
+
+    # read in existing install configuration
+    if [ -f "/etc/nsm/administration.conf" ]
+    then
+       . /etc/nsm/administration.conf
+    else
+        print_all "Failed to find existing installation." 1
+        exit 1
+    fi
+
+    # set up initial variables
+    NSM_MD5_FILE="/tmp/NSMnow.md5"
+    NSM_URL_BASE="http://www.securixlive.com/download/nsmnow"
+    
+    # grab the latest MD5 file from securixlive.com
+    print_all "Grabbing latest version list" 1
+    CMD="wget ${NSM_URL_BASE}/NSMnow.md5 -O $NSM_MD5_FILE -o $LOG_PATH"
+    print_log "downloading via wget: ${CMD}" 2
+    $CMD
+    CMD_RET=$?
+    
+    # ensure the download succeeded
+    if [ ${CMD_RET} -ne 0 ]
+    then
+        print_all "unable to download: ${NSM_URL_BASE}/NSMnow.md5 (${CMD_RET})" 2
+        return 1
+    fi
+
+    # extract the version literal and numbers
+    print_all "Checking versions:" 1
+    ONLINE_VER_LITERAL=$(cat "$NSM_MD5_FILE" | grep "^VERSION" | cut -d: -f2)
+
+    # print versions
+    print_all "Installed: v${NSM_VER_LITERAL}" 2
+    print_all "Available: v${ONLINE_VER_LITERAL}" 2
+
+    # assume we are up to date
+    RET=2
+
+    # check for literal mismatch and then determine if online version is higher
+    if [ "${ONLINE_VER_LITERAL}" \> "${NSM_VER_LITERAL}" ]
+    then
+        RET=0
+    fi
+
+    # output the available version if upgradeable
+    if [ ${RET} -eq 0 -a ${UPDATES_APPLY} -eq "1" ]
+    then
+        # build variables
+        NSM_TARBALL="NSMnow-${ONLINE_VER_LITERAL}.tar.gz"
+        NSM_TMP_DIR="/tmp/NSMnow-${ONLINE_VER_LITERAL}"
+        NSM_TMP_TARBALL="/tmp/${NSM_TARBALL}"
+        NSM_URL="${NSM_URL_BASE}/${NSM_TARBALL}"
+
+        # download the available version
+        print_all "Grabbing latest tarball" 1
+        CMD="wget $NSM_URL -O $NSM_TMP_TARBALL -a $LOG_PATH"
+        print_log "downloading via wget: ${CMD}" 2
+        $CMD
+        CMD_RET=$?
+
+        # ensure the download succeeded
+        if [ ${CMD_RET} -ne 0 ]
+        then
+			print_all "unable to download: ${NSM_URL} (${CMD_RET})" 2
+            return 1
+        fi
+
+        # remove any old extracts and extract the new download
+        print_all "Extracting tarball" 1
+        rm -rf $NSM_TMP_DIR && mkdir -p $NSM_TMP_DIR && tar -xzf $NSM_TMP_TARBALL -C /tmp
+        CMD_RET=$?
+
+        # ensure the extraction succeeded
+        if [ ${CMD_RET} -ne 0 ]
+        then
+			print_all "unable to extract (${CMD_RET})" 2
+            return 1
+        fi
+
+        # install the new files ignoring the full tarball (which we just downloaded)
+        print_all "Copying new files" 1
+        cat $NSM_MD5_FILE | grep -E "^[0-9a-f]{32}" | grep -v "${NSM_TARBALL}" | while read MD5 FILE
+        do
+            # strip the leading "./"
+            FILE=${FILE##./}
+
+            # check the md5
+    		FILE_HASH=$(md5sum "${NSM_TMP_DIR}/${FILE}" | awk '{print $1}')
+            if [ "${FILE_HASH}" == "${MD5}" ]
+            then
+                # grab the basename of the file
+                FILE_BASENAME=$(basename $FILE)
+                case "$FILE" in
+                    *templates/sbin*)
+                        DST_FILE="${NSM_GENERAL_SBIN_DIR}/${FILE_BASENAME}"
+                        ;;
+                    *templates/init*)
+                        DST_FILE="${NSM_GENERAL_INIT_DIR}/${FILE_BASENAME}"
+                        ;;
+                    *templates/cron*)
+                        DST_FILE="${NSM_GENERAL_CRON_DIR}/${FILE_BASENAME}"
+                        ;;
+                    */lib*)
+                        DST_FILE="${NSM_LIB_DIR}/${FILE_BASENAME}"
+                        ;;
+                    *)
+                        DST_FILE="${NSM_SHARE_DIR}/${FILE_BASENAME}"
+                        ;;
+                esac
+    
+                # check the copy was successful
+                CMD="cp ${NSM_TMP_DIR}/${FILE} ${DST_FILE}"
+                print_all "copying via cp: ${CMD}" 2
+                $CMD
+                if [ ${?} -eq 0 ]
+                then
+                    # update the cache and check for errors
+                    cache_file_update "${DST_FILE}" "nsmnow"
+                    if [ ${?} -ne 0 ]
+                    then
+			            print_all "unable to update cache for: ${DST_FILE}" 2
+                    fi
+                else
+			        print_all 2 "unable to copy: ${DST_FILE} (${CMD_RET})" 2
+                    RET=1
+                fi
+            else
+			    print_all 2 "hash mismatch: ${FILE}" 2
+            fi
+        done
+
+        # clean up
+        rm -rf $NSM_TMP_DIR $NSM_TMP_TARBALL
+    fi
+
+    # clean up
+    rm -rf $NSM_MD5_FILE $LOG
+
+    if [ ${RET} -eq 0 ]
+    then
+        print_all "NSMnow upgrade completed." 1
+    elif [ ${RET} -eq 2 ]
+    then
+        print_all "NSMnow is up to date." 1
+    else
+        print_all "There were errors during the NSMnow upgrade." 1
+    fi
+
+    return $RET
+}
+
+
+required_option_get()
+{
+	# grab input variables with sane defaulting
+    REQUIRED_VARIABLE=${1:-}
+    
+	# ensure parameter exists
+	if [ -z "${REQUIRED_VARIABLE}" ] 
+    then
+        return 1
+    fi
+
+    # check if variable is not defined
+    eval VAL=\$$REQUIRED_VARIABLE
+    # otherwise, check if we are already defined as required
+    if [ "${VAL}" = "-1" ]
+    then
+        return 1
+    fi
+
+    # echo the defined value and return
+    echo $VAL
+    return 0
+}
+
+#
+# required_option_set()
+#
+# Forces a variable to be obtained in order to continue successfully. 
+#
+required_option_set()
+{
+	# grab input variables with sane defaulting
+    REQUIRED_VARIABLE=${1:-}
+    
+	# ensure parameter exists
+	if [ -z "${REQUIRED_VARIABLE}" ] 
+    then
+        return 1
+    fi
+
+    # check if variable is not defined
+    eval VAL=\$$REQUIRED_VARIABLE
+    if [ -z "${VAL}" ]
+    then
+        let "$REQUIRED_VARIABLE=-1"
+    # otherwise, check if we are already defined as required
+    elif [ "${VAL}" = "-1" ]
+    then
+        true
+    fi
+
+    return 0
+}
+
+#
+# get_required_options()
+#
+#  This function provides a detailed configuration for all possible options
+# across all the plugins. It provides a user friendly wizard to the complex
+# configuration requirements of the NSM tools
+#
+#
+required_options_get()
+{
+	# grab input variables with sane defaulting
+	SPECIAL_OPTIONS=${1:-0}
+
+    print_all "Collecting required options" 1
+	# ensure all required options are configured
+    for PKG in $FINAL_PACKAGES
+    do
+        nsm_package_${PKG}_required_options "${SPECIAL_OPTIONS}"
+    done
+
+    #
+    # collect the essential options
+    #
+	print_all "Obtaining all ESSENTIAL options" 2
+    GENERAL_BIN_DIR="$(required_option_get "GENERAL_BIN_DIR")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${GENERAL_BIN_DIR}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${GENERAL_BIN_DIR}" ]
+        then
+            is_debian || is_ubuntu
+            if [ ${?} -eq 0 ]
+            then
+                GENERAL_BIN_DIR="/usr/local/bin"
+            else
+             	GENERAL_BIN_DIR="/usr/bin"
+            fi
+        fi
+
+		prompt_user_input "Binary Directory" "Path where all userspace binaries will be installed to" "$GENERAL_BIN_DIR"
+    	[ ${?} -eq 0 ] && GENERAL_BIN_DIR=$PROMPT_RET
+	fi
+
+    GENERAL_LIB_DIR="$(required_option_get "GENERAL_LIB_DIR")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${GENERAL_LIB_DIR}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${GENERAL_LIB_DIR}" ]
+        then
+            is_debian || is_ubuntu
+            if [ ${?} -eq 0 ]
+            then
+                GENERAL_LIB_DIR="/usr/local/lib"
+            else
+               	GENERAL_LIB_DIR="/usr/lib"
+            fi
+        fi
+
+		prompt_user_input "Library Directory" "Path where all libraries will be installed to" "$GENERAL_LIB_DIR"
+    	[ ${?} -eq 0 ] && GENERAL_LIB_DIR=$PROMPT_RET
+	fi
+
+    GENERAL_SBIN_DIR="$(required_option_get "GENERAL_SBIN_DIR")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${GENERAL_SBIN_DIR}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${GENERAL_SBIN_DIR}" ]
+        then
+            is_debian || is_ubuntu
+            if [ ${?} -eq 0 ]
+            then
+                GENERAL_SBIN_DIR="/usr/local/sbin"
+            else
+              	GENERAL_SBIN_DIR="/usr/sbin"
+            fi
+        fi
+
+		prompt_user_input "System Binary Directory" "Path where all system binaries will be installed to" "$GENERAL_SBIN_DIR"
+    	[ ${?} -eq 0 ] && GENERAL_SBIN_DIR=$PROMPT_RET
+	fi
+
+    GENERAL_ETC_DIR="$(required_option_get "GENERAL_ETC_DIR")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${GENERAL_ETC_DIR}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${GENERAL_ETC_DIR}" ]
+        then
+            GENERAL_ETC_DIR="/etc"
+        fi
+
+		prompt_user_input "System Configuration Directory" "Path where system configuration files will be installed to" "$GENERAL_ETC_DIR"
+    	[ ${?} -eq 0 ] && GENERAL_ETC_DIR=$PROMPT_RET
+	fi
+
+    GENERAL_INIT_DIR="$(required_option_get "GENERAL_INIT_DIR")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${GENERAL_INIT_DIR}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${GENERAL_INIT_DIR}" ]
+        then
+            GENERAL_INIT_DIR="/etc/init.d"
+        fi
+
+		prompt_user_input "System Init Script Directory" "Path where all system initialisation scripts will be installed to" "$GENERAL_INIT_DIR"
+    	[ ${?} -eq 0 ] && GENERAL_INIT_DIR=$PROMPT_RET
+	fi
+
+    GENERAL_CRON_DIR="$(required_option_get "GENERAL_CRON_DIR")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${GENERAL_CRON_DIR}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${GENERAL_CRON_DIR}" ]
+        then
+            GENERAL_CRON_DIR="/etc/cron.d"
+        fi
+
+		prompt_user_input "System Crontab Directory" "Path where system crontab scripts will be installed to" "$GENERAL_CRON_DIR"
+    	[ ${?} -eq 0 ] && GENERAL_CRON_DIR=$PROMPT_RET
+	fi
+
+    #
+	# collect the general options
+    #
+	print_all "Obtaining required GENERAL options" 2
+    
+    GENERAL_DOWNLOAD_DIR="$(required_option_get "GENERAL_DOWNLOAD_DIR")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${GENERAL_DOWNLOAD_DIR}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${GENERAL_DOWNLOAD_DIR}" ]
+        then
+		    GENERAL_DOWNLOAD_DIR="/tmp/nsmnow"
+        fi
+
+        prompt_user_input "Download Directory" "Path where all downloaded files will be saved to" "${GENERAL_DOWNLOAD_DIR}"
+    	[ ${?} -eq 0 ] && GENERAL_DOWNLOAD_DIR=$PROMPT_RET
+	fi
+	
+    GENERAL_SOURCE_DIR="$(required_option_get "GENERAL_SOURCE_DIR")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${GENERAL_SOURCE_DIR}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${GENERAL_SOURCE_DIR}" ]
+        then
+		    GENERAL_SOURCE_DIR="/tmp/nsmnow"
+        fi
+
+        prompt_user_input "Source Directory" "Path where all source tarballs will be extracted to" "${GENERAL_SOURCE_DIR}"
+        [ ${?} -eq 0 ] && GENERAL_SOURCE_DIR=$PROMPT_RET
+	fi
+
+    #
+	# collect the sensor options
+    #
+	print_all "Obtaining required SENSOR options" 2
+
+    SENSOR_NAME="$(required_option_get "SENSOR_NAME")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SENSOR_NAME}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${SENSOR_NAME}" ]
+        then
+		    SENSOR_NAME="sensor1"
+        fi
+
+		prompt_user_input "Sensor Name" "A unique name given to deliniate sensors from one another" "${SENSOR_NAME}"
+        [ ${?} -eq 0 ] && SENSOR_NAME=$PROMPT_RET
+    fi
+
+    #TODO: turn this into a list
+    SENSOR_INTERFACE="$(required_option_get "SENSOR_INTERFACE")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SENSOR_INTERFACE}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${SENSOR_INTERFACE}" ]
+        then
+		    SENSOR_INTERFACE="eth0"
+        fi
+
+		prompt_user_input "Sensor Interface" "Enter the interface that this sesnor will be monitoring" "${SENSOR_INTEFACE}"
+        [ ${?} -eq 0 ] && SENSOR_INTERFACE=$PROMPT_RET
+    fi
+
+    SENSOR_CONF_PATH="$(required_option_get "SENSOR_CONF_PATH")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SENSOR_CONF_PATH}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${SENSOR_CONF_PATH}" ]
+        then
+		    SENSOR_CONF_PATH="/etc/nsm"
+        fi
+
+		prompt_user_input "Configuration Path" "Path to where all sensor related configuration files will be stored" "${SENSOR_CONF_PATH}"
+        [ ${?} -eq 0 ] && SENSOR_CONF_PATH=$PROMPT_RET
+    fi
+
+    SENSOR_BY2_CONF_NAME="$(required_option_get "SENSOR_BY2_CONF_NAME")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SENSOR_BY2_CONF_NAME}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        SENSOR_BY2_CONF_NAME="barnyard2.conf"
+    fi
+
+    SENSOR_SANCP_CONF_NAME="$(required_option_get "SENSOR_SANCP_CONF_NAME")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SENSOR_SANCP_CONF_NAME}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        SENSOR_SANCP_CONF_NAME="sancp.conf"
+    fi
+
+    SENSOR_SNORT_CONF_NAME="$(required_option_get "SENSOR_SNORT_CONF_NAME")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SENSOR_SNORT_CONF_NAME}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        SENSOR_SNORT_CONF_NAME="snort.conf"
+    fi
+
+    SENSOR_PCAPAGENT_CONF_NAME="$(required_option_get "SENSOR_PCAPAGENT_CONF_NAME")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SENSOR_PCAPAGENT_CONF_NAME}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        SENSOR_PCAPAGENT_CONF_NAME="pcap_agent.conf"
+    fi
+
+    SENSOR_SANCPAGENT_CONF_NAME="$(required_option_get "SENSOR_SANCPAGENT_CONF_NAME")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SENSOR_SANCPAGENT_CONF_NAME}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        SENSOR_SANCPAGENT_CONF_NAME="sancp.conf"
+    fi
+
+    SENSOR_SNORTAGENT_CONF_NAME="$(required_option_get "SENSOR_SNORTAGENT_CONF_NAME")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SENSOR_SNORTAGENT_CONF_NAME}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        SENSOR_SNORTAGENT_CONF_NAME="snort_agent.conf"
+    fi
+
+    SENSOR_DATA_PATH="$(required_option_get "SENSOR_DATA_PATH")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SENSOR_DATA_PATH}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${SENSOR_DATA_PATH}" ]
+        then
+            SENSOR_DATA_PATH="/nsm/sensor_data/${SENSOR_NAME}"
+        fi
+
+		prompt_user_input "Sensor Data Path" "Path to where all sensor captured information will be stored" "${SENSOR_DATA_PATH}"
+        [ ${?} -eq 0 ] && SENSOR_DATA_PATH=$PROMPT_RET
+    fi
+
+    SENSOR_SRV_HOST="$(required_option_get "SENSOR_SRV_HOST")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SENSOR_SRV_HOST}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${SENSOR_SRV_HOST}" ]
+        then
+            SENSOR_SRV_HOST="localhost"
+        fi
+
+		prompt_user_input "Server Host" "Hostname or IP of the server component that this sensor will connect to" "${SENSOR_SRV_HOST}"
+        [ ${?} -eq 0 ] && SENSOR_SRV_HOST=$PROMPT_RET
+    fi
+
+    #
+	# collect the server options
+    #
+	print_all "Obtaining required SERVER options" 2
+	
+    SERVER_CA_PASSPHRASE="$(required_option_get "SERVER_CA_PASSPHRASE")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SERVER_CA_PASSPHRASE}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        SERVER_CA_PASSPHRASE="password"
+    fi
+	
+    SERVER_NAME="$(required_option_get "SERVER_NAME")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SERVER_NAME}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${SERVER_NAME}" ]
+        then
+            SERVER_NAME="server1"
+        fi
+
+		prompt_user_input "Server Name" "A unique name given to deliniate servers from one another" "${SERVER_NAME}"
+        [ ${?} -eq 0 ] && SERVER_NAME=$PROMPT_RET
+    fi
+
+    SERVER_LIB_PATH="$(required_option_get "SERVER_LIB_PATH")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SERVER_LIB_PATH}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        SERVER_LIB_PATH="/usr/local/lib/sguild"
+    fi
+
+    SERVER_CONF_PATH="$(required_option_get "SERVER_CONF_PATH")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SERVER_CONF_PATH}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        SERVER_CONF_PATH="/etc/sguild"
+    fi
+
+    SERVER_CONF_NAME="$(required_option_get "SERVER_CONF_NAME")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SERVER_CONF_NAME}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        SERVER_CONF_NAME="sguild.conf"
+    fi
+
+    SERVER_DATA_PATH="$(required_option_get "SERVER_DATA_PATH")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SERVER_DATA_PATH}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${SENSOR_CONF_PATH}" ]
+        then
+            SERVER_DATA_PATH="/nsm/server_data"
+        fi
+
+		prompt_user_input "Server Data Path" "Path to where all server collected information will be stored" "${SERVER_DATA_PATH}"
+        [ ${?} -eq 0 ] && SERVER_DATA_PATH=$PROMPT_RET
+    fi
+
+    SERVER_DB_NAME="$(required_option_get "SERVER_DB_NAME")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SERVER_DB_NAME}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${SERVER_DB_NAME}" ]
+        then
+            SERVER_DB_NAME="${SERVER_NAME}_db"
+        fi
+
+        prompt_user_input "Server Database Name" "Name of the sguil database which will store all sguil correlated information." "${SERVER_DB_NAME}"
+        [ ${?} -eq 0 ] && SERVER_DB_NAME=$PROMPT_RET
+    fi
+
+    SERVER_DB_USER="$(required_option_get "SERVER_DB_USER")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SERVER_DB_USER}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${SERVER_DB_USER}" ]
+        then
+            SERVER_DB_USER="sguil"
+        fi
+
+		prompt_user_input "Server Database User" "Name of the user who will have access rights to the sguil database." "${SERVER_DB_USER}"
+        [ ${?} -eq 0 ] && SERVER_DB_USER=$PROMPT_RET
+    fi
+
+    SERVER_DB_PASS="$(required_option_get "SERVER_DB_PASS")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SERVER_DB_PASS}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${SERVER_DB_PASS}" ]
+        then
+            SERVER_DB_PASS="password"
+        fi
+
+	    prompt_user_input "Server Database Password" "Password of the user who will have access rights to the sguil database." "${SERVER_DB_PASS}"
+        [ ${?} -eq 0 ] && SERVER_DB_PASS=$PROMPT_RET
+    fi
+
+    SERVER_CLIENT_USER="$(required_option_get "SERVER_CLIENT_USER")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SERVER_CLIENT_USER}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${SERVER_CLIENT_USER}" ]
+        then
+            SERVER_CLIENT_USER="sguil"
+        fi
+
+	    prompt_user_input "Client User" "Name of the sguil client user who will have access the sguil server." "${SERVER_CLIENT_USER}"
+        [ ${?} -eq 0 ] && SERVER_CLIENT_USER=$PROMPT_RET
+    fi
+
+    SERVER_CLIENT_PASS="$(required_option_get "SERVER_CLIENT_PASS")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${SERVER_CLIENT_PASS}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        if [ -n "${FORCE_DEFAULT}" -o -z "${SERVER_CLIENT_PASS}" ]
+        then
+            SERVER_CLIENT_PASS="password"
+        fi
+
+		prompt_user_password "Client Password" "Password of the sguil client user who will have access to the sguil server." "${SERVER_CLIENT_PASS}"
+        [ ${?} -eq 0 ] && SERVER_CLIENT_PASS=$PROMPT_RET
+    fi
+
+    #
+	# collect the client options
+    #
+	print_all "Obtaining required CLIENT options" 2
+
+    CLIENT_SRV_HOST="$(required_option_get "CLIENT_SRV_HOST")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${CLIENT_SRV_HOST}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+		# if the server host for a sensor is defined then use that as first option
+        if [ -n "${SENSOR_SRV_HOST}" ]
+        then
+            CLIENT_SRV_HOST="${SENSOR_SRV_HOST}"
+		# otherwise assume old faithful "localhost" (ie. all-in-one)
+        else
+            CLIENT_SRV_HOST="localhost"
+        fi
+
+		prompt_user_input "Server Host" "Hostname or IP of the server component that this client will connect to" "${CLIENT_SRV_HOST}"
+        [ ${?} -eq 0 ] && SENSOR_SRV_HOST=$PROMPT_RET
+    fi
+	
+    CLIENT_LIB_PATH="$(required_option_get "CLIENT_LIB_PATH")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${CLIENT_LIB_PATH}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        CLIENT_LIB_PATH="/usr/local/lib/sguil"
+    fi
+
+    CLIENT_CONF_PATH="$(required_option_get "CLIENT_CONF_PATH")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${CLIENT_CONF_PATH}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        CLIENT_CONF_PATH="/etc/sguil"
+    fi
+
+    CLIENT_CONF_NAME="$(required_option_get "CLIENT_CONF_NAME")"
+	if [ ${?} -ne 0 ] || [ ${?} -eq 0 -a -z "${CLIENT_CONF_NAME}" ] || [ -n "${FORCE_DEFAULT}" ]
+    then
+        CLIENT_CONF_NAME="sguil.conf"
+    fi
+
+	# TODO: save the updated configuration information into administration.conf
+}
+
+#
+# system_log()
+#
+# Permforms the $command using the perl system() call and pipes the output
+# to the log file. The returned system() error code will be be returned
+# as appropriate
+#
+# Arguments:
+#   - command (string)		command to perform
+#   - filedes (integer)     file descriptor to log (STDOUT, STDERR)
+#
+# Returns:
+#   Zero (0) is returned on success with a non-zero (1) returned on any error.
+#
+system_log()
+{
+	# grab input variables with sane defaulting
+    CMD=${1:-}
+    STD_LOG=${2:-3}
+
+    # ensure a log file has been globally defined
+	if [ -z "$LOG_PATH" ]
+	then	
+        return 1
+    fi
+
+	# build the additional arguments for logging
+    if [ ${STD_LOG} -eq 3 ]
+    then
+		CMD="${CMD} >>$LOG_PATH 2>&1"
+	elif [ ${STD_LOG} -eq 2 ]
+	then
+		CMD="${CMD} 2>>$LOG_PATH"
+	elif [ ${STD_LOG} -eq 1 ]
+	then
+		CMD="${CMD} >>$LOG_PATH"
+    else
+        return 1
+    fi
+
+	# execute
+	( eval exec $CMD )
+	return $?
+}
+
+
+#
+# MAIN 
+#
+
+# determine the way we've been called and set up some path information
+if [ -f "${CALLER_BASE}/lib/lib-nsm-common-utils" ]
+then
+    NSM_LIB_DIR="${CALLER_BASE}/lib"
+elif [ -f "/etc/nsm/administration.conf" ]
+then
+    . /etc/nsm/administration.conf
+else
+    echo "OOPS: It appears that you are not running from the NSMnow directory or you are"
+    echo "running from a corrupted install."
+    exit 1
+fi
+
+# include the common nsm utilties
+. $NSM_LIB_DIR/lib-nsm-common-utils
+
+# check if arguments were passed
+if [ "$#" -eq 0 ]
+then
+    echo "OOPS: No arguments were specified."
+	print_nsmnow_usage
+	exit 1
+fi
+ 
+# extract necessary pre-check arguments from the commandline
+# TODO: value sanity checking and short keyword acceptance
+while [ ${#} -gt 0 ]
+do
+	case ${1} in
+		"-d" | "--dialog")
+			PROMPT_MODE=dialog
+			;;
+		"-y" | "--force-yes")
+			FORCE_YES=yes
+			;;
+        "--force-default") # force all prompts to default values
+            FORCE_DEFAULT=yes
+            ;;
+		"-?" | "--help")
+			SHOW_HELP_ONLY=yes
+			;;
+		"-V" | "--version")
+			SHOW_VERSION_ONLY=yes
+			;;
+		--config=*)
+			CONFIG_PATH="$(echo $1 | cut -d "=" -f 2)"
+			;;
+		--log=*)
+			LOG_PATH="$(echo $1 | cut -d "=" -f 2)"
+			;;
+		--package=*)
+			PACKAGES="${PACKAGES} $(echo $1 | cut -d "=" -f 2)"
+			;;
+		"-v" | --verbosity=*)
+			if [ ${1} == "-v" ]
+			then
+				shift
+				VERBOSITY=${1}
+
+                # TODO: error check this value and fatal as required
+
+			else
+				VERBOSITY="$(echo $1 | cut -d "=" -f 2)"
+			fi
+			;;
+        "-D" | "--download")
+            ACTION="download"
+            ;;
+        "-i" | "--install")
+            ACTION="install"
+            ;;
+        "-u" | "--uninstall")
+            ACTION="uninstall"
+            ;;
+        "-f" | "--fix")
+            ACTION="fix"
+            ;;
+        "-r" | "--reconfigure")
+            ACTION="reconfigure"
+            ;;
+        "-U" | "--upgrade")
+            ACTION="upgrade"
+            ;;
+		*)
+            echo "OOPS: Unknown argument specified - ${1}"
+        	print_nsmnow_usage
+        	exit 1
+			;;
+	esac
+	shift
+done
+
+# check for help or version requests and that we have an action
+if [ -n "${SHOW_HELP_ONLY}" ]
+then
+	print_nsmnow_usage
+	exit 0
+elif [ -n "${SHOW_VERSION_ONLY}" ]
+then
+	print_nsmnow_version
+	exit 0
+elif [ -z "${ACTION}" ]
+then
+	echo "OOPS: You have to tell me to do something, such as install or download."
+	print_nsmnow_usage
+	exit 1
+fi
+
+# ensure we are root user before continuing any further
+is_root
+if [ ${?} -ne 0 ]
+then
+	echo "OOPS: Must be root to run this script!"
+	exit 1
+fi
+	
+# all output messages from here must be logged as well (via print_all)
+print_log "*******************************************************************************"
+print_all "NSMnow preparing..." 0
+print_all "Using verbosity level: ${VERBOSITY}" 1
+print_all "Using log file: ${LOG_PATH}" 1
+
+# check if this system is supported
+print_all "Detected platform: $(os_type_get)" 1
+
+# test system compatibility
+print_all "Ensuring NSMnow system compatibility" 1
+        
+is_fedora || is_rhel || is_centos
+if [ ${?} -eq 0 ]
+then
+    # install non-standard utilities and extensions
+  	for RPM in "yum-downloadonly" "wget"
+   	do
+   		is_rpm_installed "${RPM}"
+   		if [ ${?} -ne 1 ]
+   		then
+   			system_log "yum -y install ${RPM}"
+   			if [ ${?} -ne 0 ]
+   			then
+                print_all "OOPS: Unable to install requisite RPM \"${RPM}\"" 0
+                exit 1
+   			fi
+   		fi
+   	done
+
+    # ensure that Richard Fifarek's (synfulpacket.net) sguil repo exists
+    is_fedora "8-" || is_centos "4 4.6 4.7 4.8"
+    if [ ${?} -eq 0 ]
+    then
+        if [ ! -f "/etc/yum.repos.d/synful-sguilcvs.repo" ]
+        then
+            echo -e "[sguil]\nname=SynfulPacket.net Sguil Repo\nbaseurl=http://synfulpacket.net/sguilcvs/4\nenabled=1\ngpgcheck=0" > /etc/yum.repos.d/synful-sguilcvs.repo
+      		if [ ${?} -ne 0 ]
+       		then
+                print_all "OOPS: Unable to add requisite repo \"synfulpacket.net\"" 0
+                exit 1
+       		fi
+        fi
+    fi
+    
+    is_fedora "9+" || is_centos "5 5.1 5.2 5.3 5.4 5.5 5.6"
+    if [ ${?} -eq 0 ]
+    then
+        if [ ! -f "/etc/yum.repos.d/synful-sguilcvs.repo" ]
+        then
+            echo -e "[sguil]\nname=SynfulPacket.net Sguil Repo\nbaseurl=http://synfulpacket.net/sguilcvs/5\nenabled=1\ngpgcheck=0" > /etc/yum.repos.d/synful-sguilcvs.repo
+       		if [ "${?}" -ne 0 ]
+       		then
+                print_all "OOPS: Unable to add requisite repo \"synfulpacket.net\"" 0
+                exit 1
+       		fi
+        fi
+    fi
+fi
+
+# check for configuration file and load
+if [ -n "${CONFIG_PATH}" ]
+then
+    if [ -r "${CONFIG_PATH}" ]
+    then
+        print_all "Using config file: ${CONFIG_PATH}" 2
+        . $CONFIG_PATH
+    else
+	    print_all "Config can't be read: ${CONFIG_FILE}" 1
+    fi
+fi
+
+# work out what packages are going to be actioned
+if [ -z "${PACKAGES}" ]
+then
+	print_all "No packages defined. Assuming all" 2
+    PACKAGES="$VALID_PACKAGES"
+fi
+
+# confirm all packages are valid and meta-packages are expanded
+print_all "Validating defined package(s)." 2
+
+# always install the nsm package
+REQUIRED_PACKAGES="nsm"
+
+for PKG in $PACKAGES
+do
+    if [ "${PKG}" = "sensor" ]
+    then
+		REQUIRED_PACKAGES="${REQUIRED_PACKAGES} tcl buildessential snort barnyard2 sancp sguilsensor"
+    elif [ "${PKG}" = "server" ]
+    then
+		REQUIRED_PACKAGES="${REQUIRED_PACKAGES} mysql tcl sguilserver"
+    elif [ "${PKG}" = "client" ]
+    then
+		REQUIRED_PACKAGES="${REQUIRED_PACKAGES} tcl sguilclient"
+    elif [ -n "$(echo \"${VALID_PACKAGES}\" | grep ${PKG})" ]
+    then
+		REQUIRED_PACKAGES="${REQUIRED_PACKAGES} ${PKG}"
+    else
+		print_all "OOPS: Unknown package defined - ${PKG}" 0
+		print_nsmnow_usage
+		exit 1
+	fi
+
+    # necessary to expand package requirements for download and install only
+    if [ "${ACTION}" = "download" -o "${ACTION}" = "install" ]
+    then
+        if [ "${PKG}" = "barnyard2" ]
+        then
+    		REQUIRED_PACKAGES="${REQUIRED_PACKAGES} buildessential tcl barnyard2"
+        elif [ "${PKG}" = "sguilclient" ]
+        then
+    		REQUIRED_PACKAGES="${REQUIRED_PACKAGES} tcl sguilclient"
+        elif [ "${PKG}" = "sguilsensor" ]
+        then
+   	    	REQUIRED_PACKAGES="${REQUIRED_PACKAGES} tcl sguilsensor"
+        elif [ "${PKG}" = "sguilserver" ]
+        then
+    		REQUIRED_PACKAGES="${REQUIRED_PACKAGES} mysql tcl sguilserver"
+        elif [ "${PKG}" = "snort" ]
+        then
+    		REQUIRED_PACKAGES="${REQUIRED_PACKAGES} buildessential snort"
+        elif [ "${PKG}" = "sancp" ]
+        then
+    		REQUIRED_PACKAGES="${REQUIRED_PACKAGES} buildessential sancp"
+        fi
+    fi
+done
+
+# remove all duplicates to find the final packages required
+FINAL_PACKAGES="${VALID_PACKAGES}"
+for PKG in $VALID_PACKAGES
+do
+    if [ -z "$(echo \"${REQUIRED_PACKAGES}\" | grep ${PKG})" ]
+    then
+        FINAL_PACKAGES=${FINAL_PACKAGES//${PKG}}
+    fi
+done
+
+# if we are upgrading then be sure to check for newer includes before including.
+if [ "${ACTION}" == "upgrade" ]
+then
+    nsm_upgrade_local
+fi
+
+component_includes_get $NSM_LIB_DIR
+
+if [ "${ACTION}" = "download" ]
+then
+	print_all "Downloading package(s) only" 0
+	required_options_get 0 
+
+    for PKG in $FINAL_PACKAGES
+    do
+		print_all "Downloading package: ${PKG}"
+        nsm_package_${PKG}_download
+		if [ ${?} -ne 0 ]
+        then
+			general_error "${PKG} unable to be downloaded."
+		fi
+    done
+elif [ "${ACTION}" = "install" ]
+then
+	print_all "Installing package(s)" 0
+	required_options_get 1
+
+    for PKG in $FINAL_PACKAGES
+    do
+		print_all "Installing package: ${PKG}"
+        nsm_package_${PKG}_install
+		if [ ${?} -ne 0 ]
+        then
+			general_error "${PKG} unable to be installed."
+		fi
+    done
+
+    for PKG in $FINAL_PACKAGES
+    do
+		print_all "Configuring package: ${PKG}"
+        nsm_package_${PKG}_reconfigure
+		if [ ${?} -ne 0 ]
+        then
+			general_error "${PKG} unable to be configured."
+		fi
+    done
+elif [ "${ACTION}" = "upgrade" ]
+then
+	print_all "Upgrading package(s)" 0
+	required_options_get 1
+
+    for PKG in $FINAL_PACKAGES
+    do
+		print_all "Updgrading package: ${PKG}"
+        nsm_package_${PKG}_upgrade
+		if [ ${?} -ne 0 ]
+        then
+			general_error "${PKG} unable to be upgraded."
+		fi
+    done
+elif [ "${ACTION}" = "reconfigure" ]
+then
+	print_all "Reconfiguring package(s)." 0
+	required_options_get 1
+
+    for PKG in $FINAL_PACKAGES
+    do
+		print_all "Reconfiguring package: ${PKG}"
+        nsm_package_${PKG}_reconfigure
+		if [ ${?} -ne 0 ]
+        then
+			general_error "${PKG} unable to be reconfigured."
+		fi
+    done
+elif [ "${ACTION}" = "fix" ]
+then
+	print_all "Fixing package(s)" 0
+	required_options_get 1
+
+    for PKG in $FINAL_PACKAGES
+    do
+		print_all "Reconfiguring package: ${PKG}"
+        nsm_package_${PKG}_fix
+		if [ ${?} -ne 0 ]
+        then
+			general_error "${PKG} unable to be fixed."
+		fi
+    done
+elif [ "${ACTION}" = "uninstall" ]
+then
+	print_all "Un-installing package(s)" 0
+
+    for PKG in $FINAL_PACKAGES
+    do
+		print_all "Un-installing package: ${PKG}"
+        nsm_package_${PKG}_uninstall
+		if [ ${?} -ne 0 ]
+        then
+			general_error "${PKG} unable to be un-installed."
+		fi
+    done
+fi
+
+print_all "Completed ${ACTION} successfully." 0
+
+if [ "${ACTION}" = "install" ]
+then
+	print_all "NOTE: Snort can log in either UTC or the localtime, so firstly make sure that all machines are synced together. Secondly, either set the timezone on all machines to UTC or set the timezone on all machines." 0
+fi
+
+# getting here should indicate success all round (happy times)
+exit 0
+
