@@ -30,9 +30,10 @@
 #   <= mysql
 #
 
-SGUIL_SRC_DIR="sguil-0.7.0"
-SGUIL_TARBALL="sguil-0.7.0.tar.gz"
-SGUIL_SRC_URL="http://downloads.sourceforge.net/sguil/sguil-0.7.0.tar.gz?modtime=1206487221&big_mirror=0"
+SGUIL_VER="0.8.0"
+SGUIL_SRC_DIR="sguil-${SQUIL_VER}"
+SGUIL_TARBALL="${SGUIL_SRC_DIR}.tar.gz"
+SGUIL_SRC_URL="http://downloads.sourceforge.net/sguil/${SGUIL_TARBALL}?modtime=1206487221&big_mirror=0"
 
 nsm_package_sguilserver_required_options()
 {
