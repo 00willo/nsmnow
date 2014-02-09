@@ -301,8 +301,7 @@ print_nsmnow_usage()
 	echo "    sguilclient     - Sguil v0.7.0 (client components only)"
 	echo "    sguilsensor     - Sguil v0.7.0 (sensor components only)"
 	echo "    sguilserver     - Sguil v0.7.0 (server components only)"
-#	echo "    barnyard        - Barnyard v0.2.0"
-	echo "    barnyard2       - Barnyard v2.1.7"
+	echo "    barnyard2       - Barnyard v2.1.13"
 	echo "    sancp           - Sancp v1.6.1-stable"
 	echo "    sguiltools      - Sguil tools: wireshark, p0f, tcpdump and tcpflow"
 	echo 

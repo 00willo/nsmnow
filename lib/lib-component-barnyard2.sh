@@ -30,10 +30,10 @@
 #   => sguil
 #
 
-BY2_VERSION="1.8-beta2"
+BY2_VERSION="2-1.13"
 BY2_SRC_DIR="barnyard2-${BY2_VERSION}";
 BY2_TARBALL="${BY2_SRC_DIR}.tar.gz"
-BY2_SRC_URL="http://www.securixlive.com/download/barnyard/${BY2_TARBALL}"
+BY2_SRC_URL="https://github.com/firnsy/barnyard2/archive/v${BY2_TARBALL}"
 
 nsm_package_barnyard2_required_options()
 {
