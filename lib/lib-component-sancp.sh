@@ -29,7 +29,8 @@
 #   => sguil
 #
 
-SANCP_SRC_DIR="sancp-1.6.1-stable"
+SANCP_VERSION="1.6.1-stable"
+SANCP_SRC_DIR="sancp-${SANCP_VERSION}"
 SANCP_TARBALL="${SANCP_SRC_DIR}.tar.gz"
 SANCP_SRC_URL="http://downloads.sourceforge.net/sancp/${SANCP_TARBALL}?modtime=1183791869&big_mirror=0"
 
