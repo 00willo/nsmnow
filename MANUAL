@@ -128,9 +128,9 @@ Available packages:
     client          - All client specific components
 
     snort           - Snort v2.8.5
-    sguilclient     - Sguil v0.7.0 (client components only)
-    sguilsensor     - Sguil v0.7.0 (sensor components only)
-    sguilserver     - Sguil v0.7.0 (server components only)
+    sguilclient     - Sguil v0.8.0 (client components only)
+    sguilsensor     - Sguil v0.8.0 (sensor components only)
+    sguilserver     - Sguil v0.8.0 (server components only)
     barnyard2       - Barnyard v2-1.7
     sancp           - Sancp v1.6.1-stable
     sguiltools      - Sguil tools: wireshark, p0f, tcpdump and tcpflow
