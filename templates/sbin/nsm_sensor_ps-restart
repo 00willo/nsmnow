@@ -259,6 +259,7 @@ do
 	fi
 
 	# grab any early snort specific requirements
+        # previous version was 2.8.5.1, need to check out why this is here
 	is_snort_version "2.8.4.1-"
 	if [ ${?} -eq 0 ]
 	then

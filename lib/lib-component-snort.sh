@@ -31,9 +31,9 @@
 #   <= libpcap
 #
 
-SNORT_SRC_URL[0]="http://dl.snort.org/snort-current/snort-2.8.5.2.tar.gz"
-SNORT_TARBALL[0]="snort-2.8.5.2.tar.gz"
-SNORT_SRC_DIR[0]="snort-2.8.5.2"
+SNORT_SRC_URL[0]="http://dl.snort.org/snort-current/snort-2.9.6.0.tar.gz"
+SNORT_TARBALL[0]="snort-2.9.6.0.tar.gz"
+SNORT_SRC_DIR[0]="snort-2.9.6.0"
 SNORT_SRC_URL[1]="http://dl.snort.org/snort285/snort-2.8.5.2.tar.gz"
 SNORT_TARBALL[1]="snort-2.8.5.2.tar.gz"
 SNORT_SRC_DIR[1]="snort-2.8.5.2"

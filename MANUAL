@@ -127,7 +127,7 @@ Available packages:
     server          - All server specific components
     client          - All client specific components
 
-    snort           - Snort v2.8.5
+    snort           - Snort v2.9.6.0
     sguilclient     - Sguil v0.8.0 (client components only)
     sguilsensor     - Sguil v0.8.0 (sensor components only)
     sguilserver     - Sguil v0.8.0 (server components only)

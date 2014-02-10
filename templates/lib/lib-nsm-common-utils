@@ -297,7 +297,7 @@ print_nsmnow_usage()
 	echo "    server          - All server specific components"
 	echo "    client          - All client specific components"
 	echo
-	echo "    snort           - Snort v2.8.5.1"
+	echo "    snort           - Snort v2.9.6.0"
 	echo "    sguilclient     - Sguil v0.8.0 (client components only)"
 	echo "    sguilsensor     - Sguil v0.8.0 (sensor components only)"
 	echo "    sguilserver     - Sguil v0.8.0 (server components only)"
