@@ -935,7 +935,7 @@ process_start()
 
 	# execute application
 	echo "Executing: $APP $APP_OPTIONS" >$LOG_FILE
-	eval exec $APP $APP_OPTIONS >>$LOG_FILE 2>&1 &
+	eval exec setsid $APP $APP_OPTIONS >>$LOG_FILE 2>&1 &
 
 	# grab the PID which should be sufficient majority of the time
 	PID=$!
